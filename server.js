@@ -17,7 +17,7 @@ const pool = new Pool({
 const ADMIN_USER = 'roggers wifi';
 const ADMIN_PASS = '0713081880';
 
-// Simple Auth Middleware
+// Auth Middleware
 const requireAuth = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ success: false, message: 'Authentication required' });
@@ -30,11 +30,11 @@ const requireAuth = (req, res, next) => {
   }
 };
 
-// Serve Pages
+// Public Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// Verification Route (Public Portal)
+// Verify Payment Route (Public Portal)
 app.post('/api/verify-payment', async (req, res) => {
   try {
     let { phone, mpesaCode } = req.body;
@@ -66,9 +66,9 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// ADMIN ENDPOINTS (Protected)
+// ADMIN ENDPOINTS
 
-// Get All Users
+// Fetch All Users
 app.get('/api/admin/users', requireAuth, async (req, res) => {
   try {
     const queryText = `
@@ -87,29 +87,34 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
   }
 });
 
-// Register Member Manually
+// Register Member Manually (FIXED QUERY)
 app.post('/api/admin/register', requireAuth, async (req, res) => {
   try {
     const { phone, name, amount, days } = req.body;
+    const daysNum = parseInt(days) || 30;
+    const amountNum = parseFloat(amount) || 200;
+
     const queryText = `
       INSERT INTO paid_users (phone_number, user_name, amount_paid, mpesa_code, status, start_date, expiry_date, is_paused)
       VALUES ($1, $2, $3, 'MANUAL_REG', 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL, false)
       ON CONFLICT (phone_number) DO UPDATE SET
         user_name = EXCLUDED.user_name,
         amount_paid = EXCLUDED.amount_paid,
+        mpesa_code = 'MANUAL_REG',
         status = 'Active',
         is_paused = false,
         start_date = CURRENT_TIMESTAMP,
         expiry_date = CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL;
     `;
-    await pool.query(queryText, [phone, name, amount || 200, days || 30]);
+    await pool.query(queryText, [phone, name, amountNum, daysNum]);
     res.json({ success: true, message: 'User registered successfully.' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Toggle Pause / Resume
+// Pause / Resume User
 app.post('/api/admin/toggle-pause', requireAuth, async (req, res) => {
   try {
     const { id } = req.body;
@@ -119,7 +124,6 @@ app.post('/api/admin/toggle-pause', requireAuth, async (req, res) => {
     const user = userRes.rows[0];
 
     if (!user.is_paused) {
-      // PAUSE USER: Save remaining time in seconds
       const pauseQuery = `
         UPDATE paid_users 
         SET is_paused = true, 
@@ -129,7 +133,6 @@ app.post('/api/admin/toggle-pause', requireAuth, async (req, res) => {
       await pool.query(pauseQuery, [id]);
       res.json({ success: true, message: 'User paused.' });
     } else {
-      // RESUME USER: Restore remaining time from current timestamp
       const resumeQuery = `
         UPDATE paid_users 
         SET is_paused = false, 
@@ -145,7 +148,7 @@ app.post('/api/admin/toggle-pause', requireAuth, async (req, res) => {
   }
 });
 
-// Delete User (Refund / Cleanup)
+// Delete User
 app.delete('/api/admin/delete/:id', requireAuth, async (req, res) => {
   try {
     await pool.query('DELETE FROM paid_users WHERE id = $1', [req.params.id]);
