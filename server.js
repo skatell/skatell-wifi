@@ -57,7 +57,7 @@ app.post('/api/admin/change-credentials', requireAuthAPI, (req, res) => {
   return res.json({ success: true, message: 'Credentials updated successfully!' });
 });
 
-// Public Payment Verification Endpoint (Enforces Blacklist)
+// Public Payment Verification Endpoint (Enforces Blacklist & Handles Expired/Renewal Users)
 app.post('/api/verify-payment', async (req, res) => {
   try {
     let { name, phone, mpesaCode, amount } = req.body;
@@ -80,12 +80,14 @@ app.post('/api/verify-payment', async (req, res) => {
 
     const calculatedDays = Math.max(1, Math.round((paidAmount / 200) * 30));
 
+    // Check if M-Pesa Code has already been used
     const checkCode = await pool.query('SELECT * FROM paid_users WHERE mpesa_code = $1', [mpesaCode]);
     if (checkCode.rowCount > 0) return res.status(400).json({ success: false, message: 'M-Pesa code already used.' });
 
+    // UPSERT Query: Replaces expired/existing record on phone_number conflict
     const queryText = `
-      INSERT INTO paid_users (user_name, phone_number, amount_paid, mpesa_code, status, start_date, expiry_date, is_paused)
-      VALUES ($1, $2, $3, $4, 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($5 || ' days')::INTERVAL, false)
+      INSERT INTO paid_users (user_name, phone_number, amount_paid, mpesa_code, status, start_date, expiry_date, is_paused, remaining_seconds)
+      VALUES ($1, $2, $3, $4, 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($5 || ' days')::INTERVAL, false, 0)
       ON CONFLICT (phone_number) 
       DO UPDATE SET 
         user_name = EXCLUDED.user_name,
@@ -93,6 +95,7 @@ app.post('/api/verify-payment', async (req, res) => {
         amount_paid = EXCLUDED.amount_paid,
         status = 'Active',
         is_paused = false,
+        remaining_seconds = 0,
         start_date = CURRENT_TIMESTAMP,
         expiry_date = CURRENT_TIMESTAMP + ($5 || ' days')::INTERVAL
       RETURNING *;
@@ -153,14 +156,15 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
     const daysNum = days ? parseInt(days) : Math.max(1, Math.round((amountNum / 200) * 30));
 
     const queryText = `
-      INSERT INTO paid_users (phone_number, user_name, amount_paid, mpesa_code, status, start_date, expiry_date, is_paused)
-      VALUES ($1, $2, $3, 'MANUAL_REG', 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL, false)
+      INSERT INTO paid_users (phone_number, user_name, amount_paid, mpesa_code, status, start_date, expiry_date, is_paused, remaining_seconds)
+      VALUES ($1, $2, $3, 'MANUAL_REG', 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL, false, 0)
       ON CONFLICT (phone_number) DO UPDATE SET
         user_name = EXCLUDED.user_name,
         amount_paid = EXCLUDED.amount_paid,
         mpesa_code = 'MANUAL_REG',
         status = 'Active',
         is_paused = false,
+        remaining_seconds = 0,
         start_date = CURRENT_TIMESTAMP,
         expiry_date = CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL;
     `;
