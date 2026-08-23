@@ -13,27 +13,27 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Admin Credentials & Sessions
+// Admin Credentials & Active Token Sessions
 let ADMIN_USER = 'roggers wifi';
 let ADMIN_PASS = '0713081880';
 const activeSessions = new Set();
 
-// Auth Middleware
-const requireAuth = (req, res, next) => {
+// API Guard Middleware (Returns 401 JSON, NOT WWW-Authenticate header)
+const requireAuthAPI = (req, res, next) => {
   const token = req.headers['x-admin-token'];
   if (token && activeSessions.has(token)) {
     next();
   } else {
-    res.status(401).json({ success: false, message: 'Unauthorized' });
+    res.status(401).json({ success: false, message: 'Unauthorized session' });
   }
 };
 
-// Public & Page Routes
+// Page Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// Admin Login Route
+// Custom Portal Admin Login Endpoint
 app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
   if (username === ADMIN_USER && password === ADMIN_PASS) {
@@ -41,10 +41,10 @@ app.post('/api/admin/login', (req, res) => {
     activeSessions.add(token);
     return res.json({ success: true, token });
   }
-  return res.status(401).json({ success: false, message: 'Invalid Username or Password' });
+  return res.status(401).json({ success: false, message: 'Invalid Username or Password!' });
 });
 
-// Public Payment Verification
+// Public Payment Verification Endpoint
 app.post('/api/verify-payment', async (req, res) => {
   try {
     let { name, phone, mpesaCode, amount } = req.body;
@@ -81,13 +81,13 @@ app.post('/api/verify-payment', async (req, res) => {
     await pool.query(queryText, [name, phone, paidAmount, mpesaCode, calculatedDays]);
     return res.json({ success: true, message: `Payment verified! Wi-Fi active for ${calculatedDays} days.` });
   } catch (err) {
-    return res.status(500).json({ success: false, message: `Database error: ${err.message}` });
+    return res.json({ success: false, message: `Database error: ${err.message}` });
   }
 });
 
-// Admin Dashboard Endpoints
+// Protected Admin API Endpoints
 
-app.get('/api/admin/users', requireAuth, async (req, res) => {
+app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
   try {
     const queryText = `
       SELECT id, phone_number, user_name, mpesa_code, amount_paid, start_date, expiry_date, is_paused, remaining_seconds,
@@ -109,7 +109,7 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/admin/update-user', requireAuth, async (req, res) => {
+app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
   try {
     const { id, user_name, phone_number, mpesa_code, amount_paid } = req.body;
     const paidAmount = parseFloat(amount_paid) || 0;
@@ -128,7 +128,7 @@ app.post('/api/admin/update-user', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/admin/register', requireAuth, async (req, res) => {
+app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
   try {
     const { phone, name, amount, days } = req.body;
     const amountNum = parseFloat(amount) || 200;
@@ -153,7 +153,7 @@ app.post('/api/admin/register', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/admin/toggle-pause', requireAuth, async (req, res) => {
+app.post('/api/admin/toggle-pause', requireAuthAPI, async (req, res) => {
   try {
     const { id } = req.body;
     const userRes = await pool.query('SELECT * FROM paid_users WHERE id = $1', [id]);
@@ -186,7 +186,7 @@ app.post('/api/admin/toggle-pause', requireAuth, async (req, res) => {
   }
 });
 
-app.delete('/api/admin/delete/:id', requireAuth, async (req, res) => {
+app.delete('/api/admin/delete/:id', requireAuthAPI, async (req, res) => {
   try {
     await pool.query('DELETE FROM paid_users WHERE id = $1', [req.params.id]);
     res.json({ success: true, message: 'User deleted.' });
