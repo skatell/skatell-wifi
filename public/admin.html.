@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wi-Fi Admin Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6f9; }
+    h2 { color: #333; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background: #28a745; color: white; }
+    tr:hover { background: #f1f1f1; }
+    .status { font-weight: bold; color: green; }
+  </style>
+</head>
+<body>
+
+  <h2>Wi-Fi Access Admin Dashboard</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Phone Number</th>
+        <th>M-Pesa Code</th>
+        <th>Amount</th>
+        <th>Status</th>
+        <th>Start Date</th>
+        <th>Expiry Date</th>
+      </tr>
+    </thead>
+    <tbody id="user-table">
+      <tr><td colspan="6">Loading users...</td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    async function fetchUsers() {
+      try {
+        const response = await fetch('/api/users');
+        const users = await response.json();
+        const tbody = document.getElementById('user-table');
+        tbody.innerHTML = '';
+
+        if (users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6">No paid users found.</td></tr>';
+          return;
+        }
+
+        users.forEach(u => {
+          tbody.innerHTML += `
+            <tr>
+              <td>${u.phone_number}</td>
+              <td><strong>${u.mpesa_code}</strong></td>
+              <td>KES ${u.amount_paid}</td>
+              <td class="status">${u.status}</td>
+              <td>${new Date(u.start_date).toLocaleString()}</td>
+              <td>${new Date(u.expiry_date).toLocaleString()}</td>
+            </tr>
+          `;
+        });
+      } catch (err) {
+        document.getElementById('user-table').innerHTML = '<tr><td colspan="6">Failed to load data.</td></tr>';
+      }
+    }
+
+    fetchUsers();
+  </script>
+</body>
+</html>
