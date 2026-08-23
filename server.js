@@ -34,24 +34,25 @@ const requireAuth = (req, res, next) => {
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// Verify Payment Route (Public Portal with Name)
+// Verify Payment Route (User enters Name, Phone, Code & Amount)
 app.post('/api/verify-payment', async (req, res) => {
   try {
-    let { name, phone, mpesaCode } = req.body;
-    if (!name || !phone || !mpesaCode) {
-      return res.status(400).json({ success: false, message: 'Provide name, phone number, and M-Pesa code.' });
+    let { name, phone, mpesaCode, amount } = req.body;
+    if (!name || !phone || !mpesaCode || !amount) {
+      return res.status(400).json({ success: false, message: 'Provide name, phone number, transaction code, and amount.' });
     }
 
     name = String(name).trim();
     phone = String(phone).trim();
     mpesaCode = String(mpesaCode).trim().toUpperCase();
+    const paidAmount = parseFloat(amount) || 200;
 
     const checkCode = await pool.query('SELECT * FROM paid_users WHERE mpesa_code = $1', [mpesaCode]);
     if (checkCode.rowCount > 0) return res.status(400).json({ success: false, message: 'M-Pesa code already used.' });
 
     const queryText = `
       INSERT INTO paid_users (user_name, phone_number, amount_paid, mpesa_code, status, start_date, expiry_date, is_paused)
-      VALUES ($1, $2, 200, $3, 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '30 days', false)
+      VALUES ($1, $2, $3, $4, 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '30 days', false)
       ON CONFLICT (phone_number) 
       DO UPDATE SET 
         user_name = EXCLUDED.user_name,
@@ -63,16 +64,16 @@ app.post('/api/verify-payment', async (req, res) => {
         expiry_date = CURRENT_TIMESTAMP + INTERVAL '30 days'
       RETURNING *;
     `;
-    await pool.query(queryText, [name, phone, mpesaCode]);
+    await pool.query(queryText, [name, phone, paidAmount, mpesaCode]);
     return res.json({ success: true, message: 'Payment verified! Wi-Fi active for 30 days.' });
   } catch (err) {
     return res.status(500).json({ success: false, message: `Database error: ${err.message}` });
   }
 });
 
-// Admin Endpoints
+// ADMIN ENDPOINTS
 
-// Fetch All Users (Includes Days Left & Start Date)
+// Fetch All Users
 app.get('/api/admin/users', requireAuth, async (req, res) => {
   try {
     const queryText = `
@@ -90,6 +91,22 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
     `;
     const result = await pool.query(queryText);
     res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update Member Details (Admin Full Control)
+app.post('/api/admin/update-user', requireAuth, async (req, res) => {
+  try {
+    const { id, user_name, phone_number, mpesa_code, amount_paid } = req.body;
+    const queryText = `
+      UPDATE paid_users 
+      SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4 
+      WHERE id = $5;
+    `;
+    await pool.query(queryText, [user_name, phone_number, mpesa_code, parseFloat(amount_paid) || 0, id]);
+    res.json({ success: true, message: 'User updated successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
