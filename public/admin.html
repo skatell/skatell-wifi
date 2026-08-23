@@ -22,7 +22,7 @@
     body { font-family: Arial, sans-serif; padding: 20px; background: var(--bg-color); color: var(--text-color); transition: background 0.3s; }
     .card { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
     input, button, select { padding: 8px; margin: 2px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-color); }
-    input.tbl-input { width: 110px; font-size: 13px; }
+    input.tbl-input { width: 100px; font-size: 13px; }
     button { background: #28a745; color: white; border: none; cursor: pointer; }
     button.btn-save { background: #007bff; }
     button.btn-pause { background: #ffc107; color: #000; }
@@ -31,7 +31,7 @@
     .header-actions { float: right; display: flex; align-items: center; }
     .settings-icon { font-size: 20px; cursor: pointer; margin-right: 15px; }
     table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 8px; overflow: hidden; }
-    th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 14px; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 13px; }
     th { background: var(--header-bg); color: white; }
     .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; }
     .Active { background: #d4edda; color: #155724; }
@@ -76,6 +76,7 @@
           <th>Code</th>
           <th>Status</th>
           <th>Start Date</th>
+          <th>End Date</th>
           <th>Days Left</th>
           <th>Actions</th>
         </tr>
@@ -176,7 +177,7 @@
         tbody.innerHTML = '';
 
         if (!Array.isArray(users) || users.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8">No registered members found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="9">No registered members found.</td></tr>';
           return;
         }
 
@@ -185,10 +186,11 @@
             <tr>
               <td><input type="text" class="tbl-input" id="name-${u.id}" value="${u.user_name || ''}"></td>
               <td><input type="text" class="tbl-input" id="phone-${u.id}" value="${u.phone_number || ''}"></td>
-              <td><input type="number" class="tbl-input" style="width: 70px;" id="amount-${u.id}" value="${u.amount_paid || 0}"></td>
-              <td><input type="text" class="tbl-input" style="width: 90px;" id="code-${u.id}" value="${u.mpesa_code || ''}"></td>
+              <td><input type="number" class="tbl-input" style="width: 65px;" id="amount-${u.id}" value="${u.amount_paid || 0}"></td>
+              <td><input type="text" class="tbl-input" style="width: 85px;" id="code-${u.id}" value="${u.mpesa_code || ''}"></td>
               <td><span class="badge ${u.status}">${u.status}</span></td>
               <td>${new Date(u.start_date).toLocaleDateString()}</td>
+              <td>${new Date(u.expiry_date).toLocaleDateString()}</td>
               <td><strong>${u.days_left} Days</strong></td>
               <td>
                 <button class="btn-save" onclick="updateUser(${u.id})">Save</button>
