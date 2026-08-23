@@ -1,32 +1,16 @@
-const express = require('express');
-const { Pool } = require('pg');
-const path = require('path');
-
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
 // Submit M-Pesa Code for Verification
 app.post('/api/verify-payment', async (req, res) => {
   try {
     let { phone, mpesaCode } = req.body;
-    mpesaCode = mpesaCode.trim().toUpperCase();
 
     if (!phone || !mpesaCode) {
-      return res.status(400).json({ success: false, message: 'Please provide phone and transaction code.' });
+      return res.status(400).json({ success: false, message: 'Please provide both phone number and M-Pesa code.' });
     }
 
-    // Save transaction to Supabase database
+    phone = String(phone).trim();
+    mpesaCode = String(mpesaCode).trim().toUpperCase();
+
+    // Query with explicit parameters matching the table schema
     const queryText = `
       INSERT INTO paid_users (phone_number, amount_paid, mpesa_code, status, start_date, expiry_date)
       VALUES ($1, 200, $2, 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '30 days')
@@ -37,25 +21,13 @@ app.post('/api/verify-payment', async (req, res) => {
     const result = await pool.query(queryText, [phone, mpesaCode]);
 
     if (result.rowCount === 0) {
-      return res.status(400).json({ success: false, message: 'This M-Pesa code has already been submitted.' });
+      return res.status(400).json({ success: false, message: 'This M-Pesa code has already been submitted or used.' });
     }
 
-    res.json({ success: true, message: 'Payment verified! Your Wi-Fi access is active for 30 days.' });
+    return res.json({ success: true, message: 'Payment verified! Your Wi-Fi access is active for 30 days.' });
   } catch (err) {
-    console.error('Error:', err.message);
-    res.status(500).json({ success: false, message: 'Server error saving payment.' });
+    // Log exact error to Render log console for debugging
+    console.error('Database insertion error:', err.message);
+    return res.status(500).json({ success: false, message: `Database error: ${err.message}` });
   }
 });
-
-// Get active paid users
-app.get('/api/users', async (req, res) => {
-  try {
-    const result = await pool.query("SELECT * FROM paid_users ORDER BY start_date DESC");
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
