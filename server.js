@@ -13,28 +13,38 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Admin Credentials
-const ADMIN_USER = 'roggers wifi';
-const ADMIN_PASS = '0713081880';
+// Admin Credentials & Sessions
+let ADMIN_USER = 'roggers wifi';
+let ADMIN_PASS = '0713081880';
+const activeSessions = new Set();
 
 // Auth Middleware
 const requireAuth = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ success: false, message: 'Authentication required' });
-
-  const auth = Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
-  if (auth[0] === ADMIN_USER && auth[1] === ADMIN_PASS) {
+  const token = req.headers['x-admin-token'];
+  if (token && activeSessions.has(token)) {
     next();
   } else {
-    res.status(401).json({ success: false, message: 'Invalid credentials' });
+    res.status(401).json({ success: false, message: 'Unauthorized' });
   }
 };
 
-// Public Routes
+// Public & Page Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// Public Payment Verification (Dynamic Days Calculation)
+// Admin Login Route
+app.post('/api/admin/login', (req, res) => {
+  const { username, password } = req.body;
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
+    const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    activeSessions.add(token);
+    return res.json({ success: true, token });
+  }
+  return res.status(401).json({ success: false, message: 'Invalid Username or Password' });
+});
+
+// Public Payment Verification
 app.post('/api/verify-payment', async (req, res) => {
   try {
     let { name, phone, mpesaCode, amount } = req.body;
@@ -47,11 +57,8 @@ app.post('/api/verify-payment', async (req, res) => {
     mpesaCode = String(mpesaCode).trim().toUpperCase();
     const paidAmount = parseFloat(amount) || 0;
 
-    if (paidAmount <= 0) {
-      return res.status(400).json({ success: false, message: 'Please enter a valid amount.' });
-    }
+    if (paidAmount <= 0) return res.status(400).json({ success: false, message: 'Please enter a valid amount.' });
 
-    // Calculate days based on 200 KES = 30 Days
     const calculatedDays = Math.max(1, Math.round((paidAmount / 200) * 30));
 
     const checkCode = await pool.query('SELECT * FROM paid_users WHERE mpesa_code = $1', [mpesaCode]);
@@ -78,9 +85,8 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// ADMIN ENDPOINTS
+// Admin Dashboard Endpoints
 
-// Fetch All Users
 app.get('/api/admin/users', requireAuth, async (req, res) => {
   try {
     const queryText = `
@@ -103,7 +109,6 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
   }
 });
 
-// Update Member Details (Recalculates Expiry if Admin Changes Amount)
 app.post('/api/admin/update-user', requireAuth, async (req, res) => {
   try {
     const { id, user_name, phone_number, mpesa_code, amount_paid } = req.body;
@@ -112,10 +117,7 @@ app.post('/api/admin/update-user', requireAuth, async (req, res) => {
 
     const queryText = `
       UPDATE paid_users 
-      SET user_name = $1, 
-          phone_number = $2, 
-          mpesa_code = $3, 
-          amount_paid = $4,
+      SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4,
           expiry_date = start_date + ($5 || ' days')::INTERVAL
       WHERE id = $6;
     `;
@@ -126,12 +128,10 @@ app.post('/api/admin/update-user', requireAuth, async (req, res) => {
   }
 });
 
-// Register Member Manually
 app.post('/api/admin/register', requireAuth, async (req, res) => {
   try {
     const { phone, name, amount, days } = req.body;
     const amountNum = parseFloat(amount) || 200;
-    // Use manual days if specified, otherwise calculate from amount
     const daysNum = days ? parseInt(days) : Math.max(1, Math.round((amountNum / 200) * 30));
 
     const queryText = `
@@ -153,7 +153,6 @@ app.post('/api/admin/register', requireAuth, async (req, res) => {
   }
 });
 
-// Pause / Resume User
 app.post('/api/admin/toggle-pause', requireAuth, async (req, res) => {
   try {
     const { id } = req.body;
@@ -187,7 +186,6 @@ app.post('/api/admin/toggle-pause', requireAuth, async (req, res) => {
   }
 });
 
-// Delete User
 app.delete('/api/admin/delete/:id', requireAuth, async (req, res) => {
   try {
     await pool.query('DELETE FROM paid_users WHERE id = $1', [req.params.id]);
