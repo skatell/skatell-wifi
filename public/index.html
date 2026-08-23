@@ -3,57 +3,75 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Wi-Fi Access Payment</title>
+  <title>Wi-Fi Access Portal</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 450px; margin: 30px auto; padding: 20px; text-align: center; border: 1px solid #e0e0e0; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-    .instructions { background: #eef9f1; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left; }
-    input { width: 90%; padding: 12px; margin: 8px 0; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; }
-    button { background-color: #28a745; color: white; padding: 12px 25px; border: none; font-size: 16px; border-radius: 6px; cursor: pointer; width: 95%; margin-top: 10px; }
-    #msg { margin-top: 15px; font-weight: bold; }
+    body { font-family: Arial, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+    .card { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; }
+    .instructions { background: #eef9f2; border: 1px solid #c3e6cb; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left; font-size: 14px; }
+    input { width: 92%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; }
+    button { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    button:hover { background: #218838; }
+    .msg { margin-top: 15px; font-weight: bold; }
+    .success { color: #155724; }
+    .error { color: #721c24; }
   </style>
 </head>
 <body>
-  <h2>Wi-Fi Access (KES 200/Month)</h2>
-  
-  <div class="instructions">
-    <strong>Step 1:</strong> Send <strong>KES 200</strong> via M-Pesa Send Money to:<br>
-    <h3 style="margin: 5px 0; color: #1e7e34;">0143149490</h3>
-    <strong>Step 2:</strong> Enter your phone number and transaction code below to unlock access.
+
+  <div class="card">
+    <h2>Wi-Fi Access (KES 200/Month)</h2>
+    
+    <div class="instructions">
+      <strong>Step 1:</strong> Send <strong>KES 200</strong> via M-Pesa Send Money to:<br>
+      <strong style="color: #28a745; font-size: 16px;">0143149490</strong><br>
+      <strong>Step 2:</strong> Enter your name, phone number, and transaction code below to unlock access.
+    </div>
+
+    <input type="text" id="userName" placeholder="Your Name (e.g. Lawi)">
+    <input type="text" id="userPhone" placeholder="Your Phone Number (e.g. 0712345678)">
+    <input type="text" id="mpesaCode" placeholder="M-Pesa Transaction Code (e.g. SAB1234567)">
+
+    <button onclick="verifyPayment()">Verify Payment & Access</button>
+
+    <div id="statusMsg" class="msg"></div>
   </div>
 
-  <form id="verifyForm">
-    <input type="tel" id="phone" placeholder="Your Phone Number (e.g. 0712345678)" required><br>
-    <input type="text" id="mpesaCode" placeholder="M-Pesa Transaction Code (e.g. SAB1234567)" required><br>
-    <button type="submit">Verify Payment & Access</button>
-  </form>
-
-  <div id="msg"></div>
-
   <script>
-    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const phone = document.getElementById('phone').value;
+    async function verifyPayment() {
+      const name = document.getElementById('userName').value;
+      const phone = document.getElementById('userPhone').value;
       const mpesaCode = document.getElementById('mpesaCode').value;
-      const msg = document.getElementById('msg');
+      const statusMsg = document.getElementById('statusMsg');
 
-      msg.style.color = "blue";
-      msg.innerText = "Verifying transaction code...";
-
-      const res = await fetch('/api/verify-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, mpesaCode })
-      });
-      const data = await res.json();
-      
-      if(data.success) {
-        msg.style.color = "green";
-        msg.innerText = data.message;
-      } else {
-        msg.style.color = "red";
-        msg.innerText = data.message;
+      if (!name || !phone || !mpesaCode) {
+        statusMsg.className = 'msg error';
+        statusMsg.innerText = 'Please fill in all fields.';
+        return;
       }
-    });
+
+      statusMsg.className = 'msg';
+      statusMsg.innerText = 'Verifying payment...';
+
+      try {
+        const res = await fetch('/api/verify-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, mpesaCode })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          statusMsg.className = 'msg success';
+          statusMsg.innerText = data.message;
+        } else {
+          statusMsg.className = 'msg error';
+          statusMsg.innerText = data.message;
+        }
+      } catch (err) {
+        statusMsg.className = 'msg error';
+        statusMsg.innerText = 'Server error. Please try again.';
+      }
+    }
   </script>
 </body>
 </html>
