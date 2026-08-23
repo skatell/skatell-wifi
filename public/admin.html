@@ -26,8 +26,8 @@
 
   <div class="card">
     <h3>Manual Member Registration</h3>
-    <input type="text" id="regName" placeholder="One Name (e.g., John)">
-    <input type="text" id="regPhone" placeholder="Phone Number (e.g., 0712345678)">
+    <input type="text" id="regName" placeholder="One Name (e.g., Lawi)">
+    <input type="text" id="regPhone" placeholder="Phone Number (e.g., 0823645278)">
     <input type="number" id="regAmount" placeholder="Amount Paid (e.g., 200)" value="200">
     <input type="number" id="regDays" placeholder="Days (e.g., 30)" value="30">
     <button onclick="registerUser()">Register Member</button>
@@ -61,30 +61,39 @@
     }
 
     async function loadUsers() {
-      const res = await fetch('/api/admin/users', { headers: { 'Authorization': authHeader } });
-      if (res.status === 401) {
-        alert("Invalid Username or Password!");
-        return authenticate();
-      }
-      const users = await res.json();
-      const tbody = document.getElementById('user-table');
-      tbody.innerHTML = '';
+      try {
+        const res = await fetch('/api/admin/users', { headers: { 'Authorization': authHeader } });
+        if (res.status === 401) {
+          alert("Invalid Username or Password!");
+          return authenticate();
+        }
+        const users = await res.json();
+        const tbody = document.getElementById('user-table');
+        tbody.innerHTML = '';
 
-      users.forEach(u => {
-        tbody.innerHTML += `
-          <tr>
-            <td>${u.user_name || 'N/A'}</td>
-            <td>${u.phone_number}</td>
-            <td>${u.mpesa_code}</td>
-            <td><span class="badge ${u.status}">${u.status}</span></td>
-            <td>${new Date(u.expiry_date).toLocaleString()}</td>
-            <td>
-              <button class="btn-pause" onclick="togglePause(${u.id})">${u.is_paused ? 'Resume' : 'Pause'}</button>
-              <button class="btn-delete" onclick="deleteUser(${u.id})">Delete / Refund</button>
-            </td>
-          </tr>
-        `;
-      });
+        if (!Array.isArray(users) || users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6">No registered members found.</td></tr>';
+          return;
+        }
+
+        users.forEach(u => {
+          tbody.innerHTML += `
+            <tr>
+              <td>${u.user_name || 'N/A'}</td>
+              <td>${u.phone_number}</td>
+              <td>${u.mpesa_code}</td>
+              <td><span class="badge ${u.status}">${u.status}</span></td>
+              <td>${new Date(u.expiry_date).toLocaleString()}</td>
+              <td>
+                <button class="btn-pause" onclick="togglePause(${u.id})">${u.is_paused ? 'Resume' : 'Pause'}</button>
+                <button class="btn-delete" onclick="deleteUser(${u.id})">Delete / Refund</button>
+              </td>
+            </tr>
+          `;
+        });
+      } catch (err) {
+        console.error(err);
+      }
     }
 
     async function registerUser() {
@@ -93,12 +102,25 @@
       const amount = document.getElementById('regAmount').value;
       const days = document.getElementById('regDays').value;
 
-      await fetch('/api/admin/register', {
+      if (!name || !phone) {
+        alert("Please fill in both Name and Phone Number.");
+        return;
+      }
+
+      const res = await fetch('/api/admin/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
         body: JSON.stringify({ name, phone, amount, days })
       });
-      loadUsers();
+
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('regName').value = '';
+        document.getElementById('regPhone').value = '';
+        loadUsers();
+      } else {
+        alert("Error: " + (data.error || data.message));
+      }
     }
 
     async function togglePause(id) {
