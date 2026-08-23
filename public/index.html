@@ -19,16 +19,17 @@
 <body>
 
   <div class="card">
-    <h2>Wi-Fi Access (KES 200/Month)</h2>
+    <h2>Wi-Fi Access Portal</h2>
     
     <div class="instructions">
-      <strong>Step 1:</strong> Send <strong>KES 200</strong> via M-Pesa Send Money to:<br>
+      <strong>Step 1:</strong> Send payment via M-Pesa Send Money to:<br>
       <strong style="color: #28a745; font-size: 16px;">0143149490</strong><br>
-      <strong>Step 2:</strong> Enter your name, phone number, and transaction code below to unlock access.
+      <strong>Step 2:</strong> Enter your details below to unlock access.
     </div>
 
     <input type="text" id="userName" placeholder="Your Name (e.g. Lawi)">
     <input type="text" id="userPhone" placeholder="Your Phone Number (e.g. 0712345678)">
+    <input type="number" id="userAmount" placeholder="Amount Paid KES (e.g. 200)" value="200">
     <input type="text" id="mpesaCode" placeholder="M-Pesa Transaction Code (e.g. SAB1234567)">
 
     <button onclick="verifyPayment()">Verify Payment & Access</button>
@@ -40,10 +41,11 @@
     async function verifyPayment() {
       const name = document.getElementById('userName').value;
       const phone = document.getElementById('userPhone').value;
+      const amount = document.getElementById('userAmount').value;
       const mpesaCode = document.getElementById('mpesaCode').value;
       const statusMsg = document.getElementById('statusMsg');
 
-      if (!name || !phone || !mpesaCode) {
+      if (!name || !phone || !mpesaCode || !amount) {
         statusMsg.className = 'msg error';
         statusMsg.innerText = 'Please fill in all fields.';
         return;
@@ -56,7 +58,7 @@
         const res = await fetch('/api/verify-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone, mpesaCode })
+          body: JSON.stringify({ name, phone, mpesaCode, amount })
         });
 
         const data = await res.json();
