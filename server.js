@@ -6,26 +6,25 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// Admin Credentials & Active Sessions
-let ADMIN_USER = 'roggers';
-let ADMIN_PASS = '8422';
+// Exact Admin Credentials
+const ADMIN_USER = 'roggers';
+const ADMIN_PASS = '8422';
 const activeSessions = new Set();
 
-// API Guard Middleware
+// API Authentication Guard
 const requireAuthAPI = (req, res, next) => {
   const token = req.headers['x-admin-token'];
   if (token && activeSessions.has(token)) {
-    next();
-  } else {
-    res.status(401).json({ success: false, message: 'Unauthorized session' });
+    return next();
   }
+  return res.status(401).json({ success: false, message: 'Unauthorized session' });
 };
 
 // Page Routes
@@ -35,16 +34,21 @@ app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'adm
 
 // Admin Login Endpoint
 app.post('/api/admin/login', (req, res) => {
-  const { username, password } = req.body;
+  let { username, password } = req.body;
+  
+  username = String(username || '').trim();
+  password = String(password || '').trim();
+
   if (username === ADMIN_USER && password === ADMIN_PASS) {
-    const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    const token = 'tok_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
     activeSessions.add(token);
     return res.json({ success: true, token });
   }
+
   return res.status(401).json({ success: false, message: 'Invalid Username or Password!' });
 });
 
-// Public Payment Verification Endpoint
+// Public Payment Verification
 app.post('/api/verify-payment', async (req, res) => {
   try {
     let { name, phone, mpesaCode, amount } = req.body;
@@ -81,11 +85,11 @@ app.post('/api/verify-payment', async (req, res) => {
     await pool.query(queryText, [name, phone, paidAmount, mpesaCode, calculatedDays]);
     return res.json({ success: true, message: `Payment verified! Wi-Fi active for ${calculatedDays} days.` });
   } catch (err) {
-    return res.json({ success: false, message: `Database error: ${err.message}` });
+    return res.status(500).json({ success: false, message: `Database error: ${err.message}` });
   }
 });
 
-// Protected Admin API Endpoints
+// Protected Admin API Routes
 
 app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
   try {
@@ -193,6 +197,11 @@ app.delete('/api/admin/delete/:id', requireAuthAPI, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Fallback Route for any unmatched paths
+app.use((req, res) => {
+  res.redirect('/login');
 });
 
 const PORT = process.env.PORT || 10000;
