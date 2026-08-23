@@ -5,29 +5,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Roggers Wi-Fi Admin</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6f9; }
-    .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
-    input, button { padding: 8px; margin: 2px; border: 1px solid #ccc; border-radius: 4px; }
+    :root {
+      --bg-color: #f4f6f9;
+      --card-bg: #ffffff;
+      --text-color: #333333;
+      --border-color: #dddddd;
+      --header-bg: #28a745;
+    }
+    body.dark-theme {
+      --bg-color: #1e1e2f;
+      --card-bg: #2d2d44;
+      --text-color: #ffffff;
+      --border-color: #444466;
+      --header-bg: #1f8037;
+    }
+    body { font-family: Arial, sans-serif; padding: 20px; background: var(--bg-color); color: var(--text-color); transition: background 0.3s; }
+    .card { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    input, button, select { padding: 8px; margin: 2px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-color); }
     input.tbl-input { width: 110px; font-size: 13px; }
     button { background: #28a745; color: white; border: none; cursor: pointer; }
     button.btn-save { background: #007bff; }
     button.btn-pause { background: #ffc107; color: #000; }
     button.btn-delete { background: #dc3545; }
-    button.btn-logout { background: #6c757d; float: right; }
-    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
-    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; font-size: 14px; }
-    th { background: #28a745; color: white; }
+    button.btn-action { background: #6c757d; color: white; padding: 8px 12px; margin-left: 5px; }
+    .header-actions { float: right; display: flex; align-items: center; }
+    .settings-icon { font-size: 20px; cursor: pointer; margin-right: 15px; }
+    table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 8px; overflow: hidden; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 14px; }
+    th { background: var(--header-bg); color: white; }
     .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; }
     .Active { background: #d4edda; color: #155724; }
     .Paused { background: #fff3cd; color: #856404; }
     .Expired { background: #f8d7da; color: #721c24; }
+
+    /* Modal Overlay & Card */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+    .modal-card { background: var(--card-bg); width: 450px; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-height: 85vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px; }
+    .close-btn { cursor: pointer; font-size: 20px; font-weight: bold; }
+    .section-title { font-size: 16px; font-weight: bold; margin-top: 15px; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
   </style>
 </head>
 <body>
 
   <div style="overflow: hidden; margin-bottom: 15px;">
     <h2 style="float: left; margin: 0;">Roggers Wi-Fi Management Dashboard</h2>
-    <button class="btn-logout" onclick="logout()">Logout</button>
+    <div class="header-actions">
+      <span class="settings-icon" onclick="openSettings()" title="Settings">⚙️</span>
+      <button class="btn-action" onclick="logout()">Logout</button>
+    </div>
   </div>
 
   <div class="card">
@@ -58,17 +84,79 @@
     </table>
   </div>
 
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 style="margin:0;">Settings</h3>
+        <span class="close-btn" onclick="closeSettings()">&times;</span>
+      </div>
+
+      <!-- Credentials Section -->
+      <div class="section-title">Change Admin Login</div>
+      <input type="text" id="newUsername" placeholder="New Username" style="width: 95%;">
+      <input type="password" id="newPassword" placeholder="New Password" style="width: 95%;">
+      <button onclick="updateCredentials()" style="margin-top: 5px;">Update Credentials</button>
+
+      <!-- Theme Switcher -->
+      <div class="section-title">Portal Theme</div>
+      <select id="themeSelect" onchange="changeTheme(this.value)" style="width: 100%;">
+        <option value="light">Light Theme</option>
+        <option value="dark">Dark Theme</option>
+      </select>
+
+      <!-- Payment Blacklist -->
+      <div class="section-title">Payment Blacklist</div>
+      <input type="text" id="blockPhone" placeholder="Phone Number" style="width: 60%;">
+      <input type="text" id="blockReason" placeholder="Reason" style="width: 30%;">
+      <button onclick="addBlacklist()" style="margin-top: 5px;">Block Number</button>
+
+      <table style="margin-top: 10px;">
+        <thead>
+          <tr>
+            <th>Phone</th>
+            <th>Reason</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="blacklist-table"></tbody>
+      </table>
+    </div>
+  </div>
+
   <script>
     const adminToken = localStorage.getItem('adminToken');
 
-    // Redirect to login page if token does not exist
     if (!adminToken) {
       window.location.href = '/login';
     }
 
+    // Apply saved theme on load
+    const savedTheme = localStorage.getItem('adminTheme') || 'light';
+    if (savedTheme === 'dark') document.body.classList.add('dark-theme');
+    document.getElementById('themeSelect').value = savedTheme;
+
     function logout() {
       localStorage.removeItem('adminToken');
       window.location.href = '/login';
+    }
+
+    function openSettings() {
+      document.getElementById('settingsModal').style.display = 'flex';
+      loadBlacklist();
+    }
+
+    function closeSettings() {
+      document.getElementById('settingsModal').style.display = 'none';
+    }
+
+    function changeTheme(theme) {
+      if (theme === 'dark') {
+        document.body.classList.add('dark-theme');
+      } else {
+        document.body.classList.remove('dark-theme');
+      }
+      localStorage.setItem('adminTheme', theme);
     }
 
     async function loadUsers() {
@@ -115,6 +203,65 @@
       }
     }
 
+    async function updateCredentials() {
+      const newUsername = document.getElementById('newUsername').value;
+      const newPassword = document.getElementById('newPassword').value;
+
+      const res = await fetch('/api/admin/change-credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+        body: JSON.stringify({ newUsername, newPassword })
+      });
+      const data = await res.json();
+      alert(data.message);
+    }
+
+    async function loadBlacklist() {
+      const res = await fetch('/api/admin/blacklist', { headers: { 'x-admin-token': adminToken } });
+      const list = await res.json();
+      const tbody = document.getElementById('blacklist-table');
+      tbody.innerHTML = '';
+
+      if (!Array.isArray(list) || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3">No blocked numbers.</td></tr>';
+        return;
+      }
+
+      list.forEach(item => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${item.phone_number}</td>
+            <td>${item.reason}</td>
+            <td><button class="btn-delete" onclick="removeBlacklist('${item.phone_number}')">Unblock</button></td>
+          </tr>
+        `;
+      });
+    }
+
+    async function addBlacklist() {
+      const phone = document.getElementById('blockPhone').value;
+      const reason = document.getElementById('blockReason').value;
+
+      if (!phone) return alert("Enter a phone number");
+
+      await fetch('/api/admin/blacklist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+        body: JSON.stringify({ phone, reason })
+      });
+      document.getElementById('blockPhone').value = '';
+      document.getElementById('blockReason').value = '';
+      loadBlacklist();
+    }
+
+    async function removeBlacklist(phone) {
+      await fetch(`/api/admin/blacklist/${encodeURIComponent(phone)}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-token': adminToken }
+      });
+      loadBlacklist();
+    }
+
     async function updateUser(id) {
       const user_name = document.getElementById(`name-${id}`).value;
       const phone_number = document.getElementById(`phone-${id}`).value;
@@ -123,20 +270,12 @@
 
       const res = await fetch('/api/admin/update-user', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'x-admin-token': adminToken 
-        },
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
         body: JSON.stringify({ id, user_name, phone_number, amount_paid, mpesa_code })
       });
-
       const data = await res.json();
-      if (data.success) {
-        alert("Member details updated!");
-        loadUsers();
-      } else {
-        alert("Error: " + (data.error || data.message));
-      }
+      if (data.success) { alert("Member details updated!"); loadUsers(); } 
+      else { alert("Error: " + (data.error || data.message)); }
     }
 
     async function registerUser() {
@@ -145,37 +284,25 @@
       const amount = document.getElementById('regAmount').value;
       const days = document.getElementById('regDays').value;
 
-      if (!name || !phone) {
-        alert("Please fill in both Name and Phone Number.");
-        return;
-      }
+      if (!name || !phone) return alert("Please fill in both Name and Phone Number.");
 
       const res = await fetch('/api/admin/register', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'x-admin-token': adminToken 
-        },
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
         body: JSON.stringify({ name, phone, amount, days })
       });
-
       const data = await res.json();
       if (data.success) {
         document.getElementById('regName').value = '';
         document.getElementById('regPhone').value = '';
         loadUsers();
-      } else {
-        alert("Error: " + (data.error || data.message));
-      }
+      } else { alert("Error: " + (data.error || data.message)); }
     }
 
     async function togglePause(id) {
       await fetch('/api/admin/toggle-pause', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'x-admin-token': adminToken 
-        },
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
         body: JSON.stringify({ id })
       });
       loadUsers();
