@@ -34,7 +34,7 @@ const requireAuth = (req, res, next) => {
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// Verify Payment Route (User enters Name, Phone, Code & Amount)
+// Public Payment Verification (Dynamic Days Calculation)
 app.post('/api/verify-payment', async (req, res) => {
   try {
     let { name, phone, mpesaCode, amount } = req.body;
@@ -45,14 +45,21 @@ app.post('/api/verify-payment', async (req, res) => {
     name = String(name).trim();
     phone = String(phone).trim();
     mpesaCode = String(mpesaCode).trim().toUpperCase();
-    const paidAmount = parseFloat(amount) || 200;
+    const paidAmount = parseFloat(amount) || 0;
+
+    if (paidAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid amount.' });
+    }
+
+    // Calculate days based on 200 KES = 30 Days
+    const calculatedDays = Math.max(1, Math.round((paidAmount / 200) * 30));
 
     const checkCode = await pool.query('SELECT * FROM paid_users WHERE mpesa_code = $1', [mpesaCode]);
     if (checkCode.rowCount > 0) return res.status(400).json({ success: false, message: 'M-Pesa code already used.' });
 
     const queryText = `
       INSERT INTO paid_users (user_name, phone_number, amount_paid, mpesa_code, status, start_date, expiry_date, is_paused)
-      VALUES ($1, $2, $3, $4, 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '30 days', false)
+      VALUES ($1, $2, $3, $4, 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($5 || ' days')::INTERVAL, false)
       ON CONFLICT (phone_number) 
       DO UPDATE SET 
         user_name = EXCLUDED.user_name,
@@ -61,11 +68,11 @@ app.post('/api/verify-payment', async (req, res) => {
         status = 'Active',
         is_paused = false,
         start_date = CURRENT_TIMESTAMP,
-        expiry_date = CURRENT_TIMESTAMP + INTERVAL '30 days'
+        expiry_date = CURRENT_TIMESTAMP + ($5 || ' days')::INTERVAL
       RETURNING *;
     `;
-    await pool.query(queryText, [name, phone, paidAmount, mpesaCode]);
-    return res.json({ success: true, message: 'Payment verified! Wi-Fi active for 30 days.' });
+    await pool.query(queryText, [name, phone, paidAmount, mpesaCode, calculatedDays]);
+    return res.json({ success: true, message: `Payment verified! Wi-Fi active for ${calculatedDays} days.` });
   } catch (err) {
     return res.status(500).json({ success: false, message: `Database error: ${err.message}` });
   }
@@ -96,16 +103,23 @@ app.get('/api/admin/users', requireAuth, async (req, res) => {
   }
 });
 
-// Update Member Details (Admin Full Control)
+// Update Member Details (Recalculates Expiry if Admin Changes Amount)
 app.post('/api/admin/update-user', requireAuth, async (req, res) => {
   try {
     const { id, user_name, phone_number, mpesa_code, amount_paid } = req.body;
+    const paidAmount = parseFloat(amount_paid) || 0;
+    const calculatedDays = Math.max(1, Math.round((paidAmount / 200) * 30));
+
     const queryText = `
       UPDATE paid_users 
-      SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4 
-      WHERE id = $5;
+      SET user_name = $1, 
+          phone_number = $2, 
+          mpesa_code = $3, 
+          amount_paid = $4,
+          expiry_date = start_date + ($5 || ' days')::INTERVAL
+      WHERE id = $6;
     `;
-    await pool.query(queryText, [user_name, phone_number, mpesa_code, parseFloat(amount_paid) || 0, id]);
+    await pool.query(queryText, [user_name, phone_number, mpesa_code, paidAmount, calculatedDays, id]);
     res.json({ success: true, message: 'User updated successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -116,8 +130,9 @@ app.post('/api/admin/update-user', requireAuth, async (req, res) => {
 app.post('/api/admin/register', requireAuth, async (req, res) => {
   try {
     const { phone, name, amount, days } = req.body;
-    const daysNum = parseInt(days) || 30;
     const amountNum = parseFloat(amount) || 200;
+    // Use manual days if specified, otherwise calculate from amount
+    const daysNum = days ? parseInt(days) : Math.max(1, Math.round((amountNum / 200) * 30));
 
     const queryText = `
       INSERT INTO paid_users (phone_number, user_name, amount_paid, mpesa_code, status, start_date, expiry_date, is_paused)
