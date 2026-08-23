@@ -13,12 +13,12 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Admin Credentials & Active Token Sessions
-let ADMIN_USER = 'roggers wifi';
-let ADMIN_PASS = '0713081880';
+// Admin Credentials & Active Sessions
+let ADMIN_USER = 'roggers';
+let ADMIN_PASS = '8422';
 const activeSessions = new Set();
 
-// API Guard Middleware (Returns 401 JSON, NOT WWW-Authenticate header)
+// API Guard Middleware
 const requireAuthAPI = (req, res, next) => {
   const token = req.headers['x-admin-token'];
   if (token && activeSessions.has(token)) {
@@ -33,7 +33,7 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// Custom Portal Admin Login Endpoint
+// Admin Login Endpoint
 app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
   if (username === ADMIN_USER && password === ADMIN_PASS) {
