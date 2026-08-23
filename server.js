@@ -13,12 +13,12 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Exact Admin Credentials
-const ADMIN_USER = 'roggers';
-const ADMIN_PASS = '8422';
+// Admin Credentials
+let ADMIN_USER = process.env.ADMIN_USER || 'roggers';
+let ADMIN_PASS = process.env.ADMIN_PASS || '8422';
 const activeSessions = new Set();
 
-// API Authentication Guard
+// Guard Middleware
 const requireAuthAPI = (req, res, next) => {
   const token = req.headers['x-admin-token'];
   if (token && activeSessions.has(token)) {
@@ -32,10 +32,9 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// Admin Login Endpoint
+// Admin Login
 app.post('/api/admin/login', (req, res) => {
   let { username, password } = req.body;
-  
   username = String(username || '').trim();
   password = String(password || '').trim();
 
@@ -44,11 +43,21 @@ app.post('/api/admin/login', (req, res) => {
     activeSessions.add(token);
     return res.json({ success: true, token });
   }
-
   return res.status(401).json({ success: false, message: 'Invalid Username or Password!' });
 });
 
-// Public Payment Verification
+// Change Admin Credentials
+app.post('/api/admin/change-credentials', requireAuthAPI, (req, res) => {
+  const { newUsername, newPassword } = req.body;
+  if (!newUsername || !newPassword) {
+    return res.status(400).json({ success: false, message: 'Both fields required' });
+  }
+  ADMIN_USER = newUsername.trim();
+  ADMIN_PASS = newPassword.trim();
+  return res.json({ success: true, message: 'Credentials updated successfully!' });
+});
+
+// Public Payment Verification Endpoint (Enforces Blacklist)
 app.post('/api/verify-payment', async (req, res) => {
   try {
     let { name, phone, mpesaCode, amount } = req.body;
@@ -60,6 +69,12 @@ app.post('/api/verify-payment', async (req, res) => {
     phone = String(phone).trim();
     mpesaCode = String(mpesaCode).trim().toUpperCase();
     const paidAmount = parseFloat(amount) || 0;
+
+    // Check Blacklist
+    const checkBlacklist = await pool.query('SELECT * FROM blacklist WHERE phone_number = $1', [phone]);
+    if (checkBlacklist.rowCount > 0) {
+      return res.status(403).json({ success: false, message: 'Your phone number is blocked from payments. Contact Admin.' });
+    }
 
     if (paidAmount <= 0) return res.status(400).json({ success: false, message: 'Please enter a valid amount.' });
 
@@ -89,8 +104,7 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// Protected Admin API Routes
-
+// Member Dashboard Management Endpoints
 app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
   try {
     const queryText = `
@@ -199,9 +213,41 @@ app.delete('/api/admin/delete/:id', requireAuthAPI, async (req, res) => {
   }
 });
 
-// Fallback Route for any unmatched paths
+// Blacklist API Routes
+app.get('/api/admin/blacklist', requireAuthAPI, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM blacklist ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/blacklist', requireAuthAPI, async (req, res) => {
+  try {
+    const { phone, reason } = req.body;
+    await pool.query(
+      'INSERT INTO blacklist (phone_number, reason) VALUES ($1, $2) ON CONFLICT (phone_number) DO NOTHING',
+      [phone.trim(), reason || 'Blocked by Admin']
+    );
+    res.json({ success: true, message: 'Number added to blacklist' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/admin/blacklist/:phone', requireAuthAPI, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM blacklist WHERE phone_number = $1', [req.params.phone]);
+    res.json({ success: true, message: 'Number removed from blacklist' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fallback Route
 app.use((req, res) => {
-  res.redirect('/login');
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 const PORT = process.env.PORT || 10000;
