@@ -7,12 +7,14 @@
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6f9; }
     .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
-    input, button { padding: 10px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; }
+    input, button { padding: 8px; margin: 2px; border: 1px solid #ccc; border-radius: 4px; }
+    input.tbl-input { width: 110px; font-size: 13px; }
     button { background: #28a745; color: white; border: none; cursor: pointer; }
+    button.btn-save { background: #007bff; }
     button.btn-pause { background: #ffc107; color: #000; }
     button.btn-delete { background: #dc3545; }
     table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
-    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; font-size: 14px; }
     th { background: #28a745; color: white; }
     .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; }
     .Active { background: #d4edda; color: #155724; }
@@ -40,10 +42,10 @@
         <tr>
           <th>Name</th>
           <th>Phone</th>
+          <th>Amount (KES)</th>
           <th>Code</th>
           <th>Status</th>
           <th>Start Date</th>
-          <th>Expiry Date</th>
           <th>Days Left</th>
           <th>Actions</th>
         </tr>
@@ -81,22 +83,44 @@
         users.forEach(u => {
           tbody.innerHTML += `
             <tr>
-              <td>${u.user_name || 'N/A'}</td>
-              <td>${u.phone_number}</td>
-              <td>${u.mpesa_code}</td>
+              <td><input type="text" class="tbl-input" id="name-${u.id}" value="${u.user_name || ''}"></td>
+              <td><input type="text" class="tbl-input" id="phone-${u.id}" value="${u.phone_number || ''}"></td>
+              <td><input type="number" class="tbl-input" style="width: 70px;" id="amount-${u.id}" value="${u.amount_paid || 0}"></td>
+              <td><input type="text" class="tbl-input" style="width: 90px;" id="code-${u.id}" value="${u.mpesa_code || ''}"></td>
               <td><span class="badge ${u.status}">${u.status}</span></td>
               <td>${new Date(u.start_date).toLocaleDateString()}</td>
-              <td>${new Date(u.expiry_date).toLocaleString()}</td>
               <td><strong>${u.days_left} Days</strong></td>
               <td>
+                <button class="btn-save" onclick="updateUser(${u.id})">Save</button>
                 <button class="btn-pause" onclick="togglePause(${u.id})">${u.is_paused ? 'Resume' : 'Pause'}</button>
-                <button class="btn-delete" onclick="deleteUser(${u.id})">Delete / Refund</button>
+                <button class="btn-delete" onclick="deleteUser(${u.id})">Delete</button>
               </td>
             </tr>
           `;
         });
       } catch (err) {
         console.error(err);
+      }
+    }
+
+    async function updateUser(id) {
+      const user_name = document.getElementById(`name-${id}`).value;
+      const phone_number = document.getElementById(`phone-${id}`).value;
+      const amount_paid = document.getElementById(`amount-${id}`).value;
+      const mpesa_code = document.getElementById(`code-${id}`).value;
+
+      const res = await fetch('/api/admin/update-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+        body: JSON.stringify({ id, user_name, phone_number, amount_paid, mpesa_code })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert("Member details updated!");
+        loadUsers();
+      } else {
+        alert("Error: " + (data.error || data.message));
       }
     }
 
