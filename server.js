@@ -21,6 +21,11 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Admin Dashboard Route
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
 // Verify Payment Route
 app.post('/api/verify-payment', async (req, res) => {
   try {
