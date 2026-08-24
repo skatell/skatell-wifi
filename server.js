@@ -151,8 +151,11 @@ app.post('/api/verify-payment', async (req, res) => {
     if (checkCode.rowCount > 0) return res.status(400).json({ success: false, message: 'M-Pesa code already used.' });
 
     const queryText = `
-      INSERT INTO paid_users (user_name, phone_number, amount_paid, mpesa_code, status, is_approved, requested_days, start_date, expiry_date, is_paused, remaining_seconds, device_name, mac_address)
-      VALUES ($1, $2, $3, $4, 'Pending', 0, $5, NULL, NULL, false, 0, $6, $7)
+      INSERT INTO paid_users (
+        user_name, phone_number, amount_paid, mpesa_code, status, is_approved, 
+        requested_days, start_date, expiry_date, is_paused, remaining_seconds, device_name, mac_address
+      )
+      VALUES ($1, $2, $3, $4, 'Pending', 0, $5, CURRENT_TIMESTAMP, NULL, false, 0, $6, $7)
       ON CONFLICT (phone_number) 
       DO UPDATE SET 
         user_name = EXCLUDED.user_name,
@@ -165,7 +168,7 @@ app.post('/api/verify-payment', async (req, res) => {
         is_approved = 0,
         is_paused = false,
         remaining_seconds = 0,
-        start_date = NULL,
+        start_date = CURRENT_TIMESTAMP,
         expiry_date = NULL
       RETURNING *;
     `;
@@ -210,7 +213,8 @@ app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
 app.get('/api/admin/pending-approvals', requireAuthAPI, async (req, res) => {
   try {
     const queryText = `
-      SELECT id, phone_number, user_name, mpesa_code, amount_paid, device_name, mac_address, requested_days, status, is_approved
+      SELECT id, phone_number, user_name, mpesa_code, amount_paid, device_name, mac_address, requested_days, status, is_approved,
+      TO_CHAR(start_date, 'YYYY-MM-DD HH24:MI') AS payment_date
       FROM paid_users 
       WHERE is_approved = 0 OR is_approved IS NULL OR status = 'Pending' 
       ORDER BY id DESC;
@@ -238,7 +242,6 @@ app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
       SET is_approved = 1,
           status = 'Active',
           requested_days = $1,
-          start_date = CURRENT_TIMESTAMP,
           expiry_date = CURRENT_TIMESTAMP + make_interval(days => $1::int)
       WHERE id = $2;
     `;
