@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Portal - Wi-Fi Access</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+    .card { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; }
+    input { width: 92%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; }
+    button { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    button:hover { background: #218838; }
+    .msg { margin-top: 12px; font-weight: bold; font-size: 14px; }
+    .error { color: #dc3545; }
+    .info-table { width: 100%; border-collapse: collapse; margin-top: 15px; text-align: left; }
+    .info-table td { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
+    .info-table td.label { font-weight: bold; color: #555; width: 45%; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; display: inline-block; }
+    .Active { background: #d4edda; color: #155724; }
+    .Paused { background: #fff3cd; color: #856404; }
+    .Expired { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+
+  <!-- Login Form -->
+  <div class="card" id="loginCard">
+    <h2>User Access Portal</h2>
+    <p style="color: #666; font-size: 14px;">Enter your details to check subscription status</p>
+    
+    <input type="text" id="loginName" placeholder="Username (Your Name)">
+    <input type="password" id="loginPhone" placeholder="Password (Your Phone Number)">
+    
+    <button onclick="loginUser()">Access Dashboard</button>
+    <div id="errorMsg" class="msg error"></div>
+  </div>
+
+  <!-- Dashboard Card (Hidden by Default) -->
+  <div class="card" id="dashCard" style="display: none;">
+    <h2>My Wi-Fi Subscription</h2>
+    
+    <table class="info-table">
+      <tr><td class="label">Name:</td><td id="uName"></td></tr>
+      <tr><td class="label">Phone Number:</td><td id="uPhone"></td></tr>
+      <tr><td class="label">Amount Paid:</td><td id="uAmount"></td></tr>
+      <tr><td class="label">Status:</td><td id="uStatus"></td></tr>
+      <tr><td class="label">Start Date:</td><td id="uStart"></td></tr>
+      <tr><td class="label">End Date:</td><td id="uEnd"></td></tr>
+      <tr><td class="label">Days Remaining:</td><td id="uDays" style="font-weight: bold; color: #007bff;"></td></tr>
+    </table>
+
+    <button onclick="logoutUser()" style="background: #6c757d; margin-top: 20px;">Logout</button>
+  </div>
+
+  <script>
+    async function loginUser() {
+      const name = document.getElementById('loginName').value;
+      const phone = document.getElementById('loginPhone').value;
+      const errorMsg = document.getElementById('errorMsg');
+
+      errorMsg.innerText = '';
+
+      if (!name || !phone) {
+        errorMsg.innerText = 'Please enter both Username and Password.';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/user/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          const user = data.user;
+          document.getElementById('uName').innerText = user.user_name;
+          document.getElementById('uPhone').innerText = user.phone_number;
+          document.getElementById('uAmount').innerText = `KES ${user.amount_paid}`;
+          document.getElementById('uStatus').innerHTML = `<span class="badge ${user.status}">${user.status}</span>`;
+          document.getElementById('uStart').innerText = new Date(user.start_date).toLocaleDateString();
+          document.getElementById('uEnd').innerText = new Date(user.expiry_date).toLocaleDateString();
+          document.getElementById('uDays').innerText = `${user.days_left} Days`;
+
+          document.getElementById('loginCard').style.display = 'none';
+          document.getElementById('dashCard').style.display = 'block';
+        } else {
+          errorMsg.innerText = data.message;
+        }
+      } catch (err) {
+        errorMsg.innerText = 'Server error. Please try again.';
+      }
+    }
+
+    function logoutUser() {
+      document.getElementById('loginName').value = '';
+      document.getElementById('loginPhone').value = '';
+      document.getElementById('dashCard').style.display = 'none';
+      document.getElementById('loginCard').style.display = 'block';
+    }
+  </script>
+</body>
+</html>
