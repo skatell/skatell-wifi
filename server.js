@@ -33,6 +33,16 @@ app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'log
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/user', (req, res) => res.sendFile(path.join(__dirname, 'public', 'user.html')));
 
+// User Count Endpoint (For Auto-Generating Custom Codes like LAWI0001)
+app.get('/api/user-count', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT COUNT(*) AS count FROM paid_users');
+    res.json({ count: parseInt(result.rows[0].count, 10) || 0 });
+  } catch (err) {
+    res.status(500).json({ count: 0 });
+  }
+});
+
 // Admin Login
 app.post('/api/admin/login', (req, res) => {
   let { username, password } = req.body;
@@ -95,7 +105,7 @@ app.post('/api/user/login', async (req, res) => {
   }
 });
 
-// Public Payment Verification Endpoint (Enforces Blacklist & Handles Expired/Renewal Users)
+// Public Payment Verification Endpoint
 app.post('/api/verify-payment', async (req, res) => {
   try {
     let { name, phone, mpesaCode, amount } = req.body;
