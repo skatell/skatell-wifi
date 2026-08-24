@@ -197,6 +197,7 @@ app.post('/api/admin/refill-isp', requireAuthAPI, async (req, res) => {
 
 // Page Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/pay', (req, res) => res.sendFile(path.join(__dirname, 'public', 'payment.html'))); // <-- Added /pay route for payment page
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/admin-login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
