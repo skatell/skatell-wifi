@@ -169,11 +169,29 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
 
-        #payment-section h2 {
-            color: #b71c1c;
-            text-align: center;
+        .payment-instructions {
+            background-color: #e8f0fe;
+            border-left: 4px solid #1a73e8;
+            padding: 12px;
             margin-bottom: 15px;
-            font-size: 18px;
+            border-radius: 4px;
+        }
+
+        .payment-instructions h3 {
+            font-size: 14px;
+            color: #1a73e8;
+            margin-bottom: 4px;
+        }
+
+        .payment-instructions p {
+            font-size: 13px;
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .payment-instructions .till-number {
+            font-weight: bold;
+            color: #000;
         }
 
         .form-group {
@@ -182,7 +200,7 @@
 
         .form-group label {
             display: block;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
             margin-bottom: 4px;
             color: #333;
@@ -193,12 +211,12 @@
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .btn-submit {
             width: 100%;
-            background-color: #00c853;
+            background-color: #2563eb;
             color: white;
             border: none;
             padding: 12px;
@@ -207,6 +225,7 @@
             border-radius: 4px;
             cursor: pointer;
             margin-top: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .btn-back {
@@ -215,7 +234,7 @@
             color: white;
             border: none;
             padding: 10px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
             border-radius: 4px;
             cursor: pointer;
@@ -250,31 +269,42 @@
             <div class="btn-brand">ROGERS</div>
         </div>
 
-        <!-- Hidden Payment Section (Shows instantly when clicked) -->
+        <!-- Hidden Payment Section (Matches your detailed style layout) -->
         <div id="payment-section">
-            <h2>M-PESA PAYMENT PORTAL</h2>
+            <div class="payment-instructions">
+                <h3>Payment Instructions:</h3>
+                <p>Send M-Pesa Payment to:<br><strong>Phone / Till: <span class="till-number">0143 149 490</span></strong></p>
+            </div>
+            
+            <p style="font-size: 12px; color: #555; margin-bottom: 12px; text-align: center;">Enter your details below. Your verification code will be automatically generated.</p>
+
             <form id="paymentForm">
                 <div class="form-group">
-                    <label>Full Name</label>
+                    <label>Name (e.g. Lawi)</label>
                     <input type="text" id="payName" required placeholder="Enter your name">
                 </div>
                 <div class="form-group">
-                    <label>Phone Number (M-Pesa)</label>
+                    <label>Phone Number (e.g. 0712345678)</label>
                     <input type="text" id="payPhone" required placeholder="07XXXXXXXX">
                 </div>
                 <div class="form-group">
-                    <label>Select Package</label>
+                    <label>Device Name (e.g. Tecno Spark 10, HP Laptop)</label>
+                    <input type="text" id="payDevice" required placeholder="Device Name">
+                </div>
+                <div class="form-group">
+                    <label>Wi-Fi MAC Address (e.g. AA:BB:CC:DD:EE:FF)</label>
+                    <input type="text" id="payMac" required placeholder="AA:BB:CC:DD:EE:FF">
+                </div>
+                <div class="form-group">
+                    <label>Select WiFi Package</label>
                     <select id="payAmount" required>
                         <option value="200">Ksh 200 - 30 Days (Full Month)</option>
                         <option value="100">Ksh 100 - 10 Days</option>
                         <option value="50">Ksh 50 - 2 Days</option>
                     </select>
                 </div>
-                <!-- Hidden automated device details collected seamlessly -->
-                <input type="hidden" id="deviceName" value="Web User Device">
-                <input type="hidden" id="macAddress" value="XX:XX:XX:XX:XX:XX">
 
-                <button type="submit" class="btn-submit">SUBMIT PAYMENT REQUEST</button>
+                <button type="submit" class="btn-submit">Verify & Connect</button>
                 <button type="button" class="btn-back" id="backBtn">Back to Home</button>
             </form>
             <div id="payResponse" style="margin-top: 10px; font-size: 13px; text-align: center; font-weight: bold;"></div>
@@ -312,8 +342,8 @@
                 name: document.getElementById('payName').value,
                 phone: document.getElementById('payPhone').value,
                 amount: document.getElementById('payAmount').value,
-                deviceName: document.getElementById('deviceName').value,
-                macAddress: document.getElementById('macAddress').value
+                deviceName: document.getElementById('payDevice').value,
+                macAddress: document.getElementById('payMac').value
             };
 
             try {
