@@ -286,7 +286,7 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
       )
       VALUES (
         $1, $2, $3, $4, 'Active', 1, 
-        $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($5 * INTERVAL '1 day'), false, 0, $6, $7
+        $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($5 || ' days')::INTERVAL, false, 0, $6, $7
       )
       ON CONFLICT (phone_number) DO UPDATE SET
         user_name = EXCLUDED.user_name,
@@ -300,7 +300,7 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
         is_paused = false,
         remaining_seconds = 0,
         start_date = CURRENT_TIMESTAMP,
-        expiry_date = CURRENT_TIMESTAMP + (EXCLUDED.requested_days * INTERVAL '1 day');
+        expiry_date = CURRENT_TIMESTAMP + (EXCLUDED.requested_days || ' days')::INTERVAL;
     `;
 
     await pool.query(queryText, [
