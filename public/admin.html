@@ -205,13 +205,15 @@
                 <th>MAC Address</th>
                 <th>Code</th>
                 <th>Paid</th>
+                <th>Payment Date</th>
+                <th>End Date</th>
                 <th>Days Left</th>
                 <th>Status</th>
                 <th class="no-print">Actions</th>
               </tr>
             </thead>
             <tbody id="usersTable">
-              <tr><td colspan="10">Loading active users...</td></tr>
+              <tr><td colspan="12">Loading active users...</td></tr>
             </tbody>
           </table>
         </div>
@@ -421,7 +423,7 @@
         
         const tbody = document.getElementById('usersTable');
         if (data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="10">No active subscriptions.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="12">No active subscriptions.</td></tr>';
           return;
         }
 
@@ -439,6 +441,8 @@
               <td><code>${u.mac_address || 'N/A'}</code></td>
               <td>${u.mpesa_code || ''}</td>
               <td>KES ${u.amount_paid || 0}</td>
+              <td>${u.payment_date || 'N/A'}</td>
+              <td>${u.end_date || 'N/A'}</td>
               <td>${u.days_left} Days</td>
               <td><span class="badge ${badgeClass}">${u.status}</span></td>
               <td class="no-print">
