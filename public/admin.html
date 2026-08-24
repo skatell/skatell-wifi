@@ -104,7 +104,7 @@
       <input type="password" id="newPassword" placeholder="New Password" style="width: 95%;">
       <button onclick="updateCredentials()" style="margin-top: 5px;">Update Credentials</button>
 
-      <!-- STEP 2: Export Button Added Here -->
+      <!-- Step 2: Reports & PDF Export -->
       <div class="section-title">Reports & Export</div>
       <button onclick="downloadUsersPDF()" style="background: #17a2b8; width: 100%; font-weight: bold; padding: 10px; margin-top: 5px;">
         📄 Export Registered Members to PDF
@@ -213,6 +213,69 @@
         });
       } catch (err) {
         console.error(err);
+      }
+    }
+
+    // Step 3: Download Registered Members as PDF
+    async function downloadUsersPDF() {
+      if (!adminToken) {
+        alert("Session expired. Please log in again.");
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/users', {
+          headers: { 'x-admin-token': adminToken }
+        });
+
+        if (!res.ok) throw new Error("Failed to fetch user list.");
+        const users = await res.json();
+
+        if (!users || users.length === 0) {
+          alert("No registered members found to export.");
+          return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // Document Header
+        doc.setFontSize(18);
+        doc.setTextColor(40);
+        doc.text('Roggers Wi-Fi - Registered Members Report', 14, 20);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
+        doc.text(`Total Members: ${users.length}`, 14, 34);
+
+        // Table Data Formatting
+        const tableHeaders = [['#', 'Name', 'Phone Number', 'Code', 'Amount (KES)', 'Status', 'Days Left']];
+        const tableRows = users.map((user, index) => [
+          index + 1,
+          user.user_name || 'N/A',
+          user.phone_number || 'N/A',
+          user.mpesa_code || 'N/A',
+          user.amount_paid || 0,
+          user.status || 'N/A',
+          `${user.days_left} Days`
+        ]);
+
+        // Build Table using jsPDF AutoTable
+        doc.autoTable({
+          head: tableHeaders,
+          body: tableRows,
+          startY: 40,
+          theme: 'striped',
+          headStyles: { fillColor: [40, 167, 69] },
+          styles: { fontSize: 9, cellPadding: 3 }
+        });
+
+        // Save PDF Document
+        doc.save(`Wi-Fi_Members_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
+
+      } catch (err) {
+        alert("Error generating PDF: " + err.message);
       }
     }
 
