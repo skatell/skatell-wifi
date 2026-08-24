@@ -9,7 +9,7 @@
     .card { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; }
     .admin-info { background: #e9ecef; border-left: 4px solid #007bff; padding: 12px; margin-bottom: 20px; text-align: left; border-radius: 4px; }
     .admin-info p { margin: 4px 0; font-size: 14px; color: #333; }
-    input { width: 92%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; box-sizing: border-box; }
+    input, select { width: 92%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; box-sizing: border-box; background-color: #fff; }
     input[readonly] { background-color: #e9ecef; cursor: not-allowed; color: #495057; font-weight: bold; }
     button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     button:hover { background: #0056b3; }
@@ -37,14 +37,21 @@
     <p style="color: #666; font-size: 14px;">Enter your details to generate your access code and activate internet.</p>
 
     <form id="payForm" onsubmit="return false;">
-      <!-- Updated Placeholder -->
+      <!-- Name Input -->
       <input type="text" id="name" placeholder="Name (e.g. Lawi)" oninput="updateGeneratedCode()">
       <input type="text" id="phone" placeholder="Phone Number (e.g. 0712345678)">
       
       <!-- Auto-Generated Code Field -->
       <input type="text" id="mpesaCode" placeholder="Auto-Generated Code" readonly>
       
-      <input type="number" id="amount" placeholder="Amount Paid (KES)">
+      <!-- WiFi Package Selection Dropdown -->
+      <select id="amount" required>
+        <option value="" disabled selected>-- Select WiFi Package --</option>
+        <option value="25">KES 25 — 2 Days Access</option>
+        <option value="50">KES 50 — 7 Days Access</option>
+        <option value="100">KES 100 — 14 Days Access</option>
+        <option value="200">KES 200 — 30 Days Access</option>
+      </select>
 
       <button type="button" id="payBtn" onclick="submitPayment()">Verify & Connect</button>
     </form>
@@ -105,7 +112,7 @@
       const name = document.getElementById('name').value.trim();
       const phone = document.getElementById('phone').value.trim();
       const mpesaCode = document.getElementById('mpesaCode').value.trim();
-      const amount = document.getElementById('amount').value.trim();
+      const amount = document.getElementById('amount').value;
       const statusMsg = document.getElementById('statusMsg');
       const payBtn = document.getElementById('payBtn');
 
@@ -114,7 +121,7 @@
 
       if (!name || !phone || !mpesaCode || !amount) {
         statusMsg.className = 'msg error';
-        statusMsg.innerText = 'Please fill in all fields.';
+        statusMsg.innerText = 'Please fill in all fields and select a package.';
         return;
       }
 
