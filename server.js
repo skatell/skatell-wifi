@@ -82,13 +82,13 @@ app.post('/api/user/login', async (req, res) => {
     const queryText = `
       SELECT id, phone_number, user_name, mpesa_code, amount_paid, start_date, expiry_date, is_paused, remaining_seconds, is_approved,
       CASE 
-        WHEN is_approved = 0 OR is_approved IS FALSE THEN 'Pending'
+        WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
         WHEN is_paused THEN 'Paused'
         WHEN CURRENT_TIMESTAMP > expiry_date THEN 'Expired'
         ELSE 'Active'
       END AS status,
       CASE 
-        WHEN is_approved = 0 OR is_approved IS FALSE THEN 0
+        WHEN is_approved = 0 OR is_approved IS NULL THEN 0
         WHEN is_paused THEN CEIL(remaining_seconds / 86400.0)
         ELSE GREATEST(0, CEIL(EXTRACT(EPOCH FROM (expiry_date - CURRENT_TIMESTAMP)) / 86400.0))
       END AS days_left
@@ -107,7 +107,7 @@ app.post('/api/user/login', async (req, res) => {
   }
 });
 
-// Public Payment Verification / Submission Endpoint (FIXED FOR PENDING APPROVAL)
+// Public Payment Verification / Submission Endpoint
 app.post('/api/verify-payment', async (req, res) => {
   try {
     let { name, phone, mpesaCode, amount } = req.body;
@@ -134,7 +134,6 @@ app.post('/api/verify-payment', async (req, res) => {
     const checkCode = await pool.query('SELECT * FROM paid_users WHERE mpesa_code = $1', [mpesaCode]);
     if (checkCode.rowCount > 0) return res.status(400).json({ success: false, message: 'M-Pesa code already used.' });
 
-    // UPSERT Query: Fixed Postgres interval evaluation on conflict updates
     const queryText = `
       INSERT INTO paid_users (user_name, phone_number, amount_paid, mpesa_code, status, is_approved, requested_days, start_date, expiry_date, is_paused, remaining_seconds)
       VALUES ($1, $2, $3, $4, 'Pending', 0, $5, NULL, NULL, false, 0)
@@ -165,18 +164,18 @@ app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
     const queryText = `
       SELECT id, phone_number, user_name, mpesa_code, amount_paid, start_date, expiry_date, is_paused, remaining_seconds, is_approved,
       CASE 
-        WHEN is_approved = 0 OR is_approved IS FALSE THEN 'Pending'
+        WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
         WHEN is_paused THEN 'Paused'
         WHEN CURRENT_TIMESTAMP > expiry_date THEN 'Expired'
         ELSE 'Active'
       END AS status,
       CASE 
-        WHEN is_approved = 0 OR is_approved IS FALSE THEN 0
+        WHEN is_approved = 0 OR is_approved IS NULL THEN 0
         WHEN is_paused THEN CEIL(remaining_seconds / 86400.0)
         ELSE GREATEST(0, CEIL(EXTRACT(EPOCH FROM (expiry_date - CURRENT_TIMESTAMP)) / 86400.0))
       END AS days_left
       FROM paid_users 
-      WHERE is_approved = 1 OR is_approved IS TRUE
+      WHERE is_approved = 1
       ORDER BY start_date DESC;
     `;
     const result = await pool.query(queryText);
@@ -191,7 +190,7 @@ app.get('/api/admin/pending-approvals', requireAuthAPI, async (req, res) => {
   try {
     const queryText = `
       SELECT * FROM paid_users 
-      WHERE is_approved = 0 OR is_approved IS FALSE OR status = 'Pending' 
+      WHERE is_approved = 0 OR is_approved IS NULL OR status = 'Pending' 
       ORDER BY id DESC;
     `;
     const result = await pool.query(queryText);
