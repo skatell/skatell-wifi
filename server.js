@@ -180,7 +180,7 @@ app.post('/api/verify-payment', async (req, res) => {
 app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
   try {
     const queryText = `
-      SELECT id, phone_number, user_name, mpesa_code, amount_paid, device_name, mac_address, 
+      SELECT id, phone_number, user_name, mpesa_code, amount_paid, device_name, mac_address, requested_days,
       TO_CHAR(start_date, 'YYYY-MM-DD HH24:MI') AS payment_date,
       TO_CHAR(expiry_date, 'YYYY-MM-DD HH24:MI') AS end_date,
       is_paused, remaining_seconds, is_approved,
@@ -249,23 +249,66 @@ app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
   }
 });
 
+// Full Member Details Edit Endpoint
 app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
   try {
-    const { id, user_name, phone_number, mpesa_code, amount_paid, device_name, mac_address } = req.body;
+    const { 
+      id, 
+      user_name, 
+      phone_number, 
+      mpesa_code, 
+      amount_paid, 
+      days, 
+      device_name, 
+      mac_address,
+      status,
+      is_approved
+    } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'User ID is required.' });
+    }
+
     const paidAmount = parseFloat(amount_paid) || 0;
-    const calculatedDays = calculatePackageDays(paidAmount);
+    const parsedDays = parseInt(days, 10);
+    const calculatedDays = (!isNaN(parsedDays) && parsedDays > 0) 
+      ? parsedDays 
+      : calculatePackageDays(paidAmount);
+
+    const approvedFlag = (is_approved !== undefined) ? parseInt(is_approved, 10) : 1;
+    const userStatus = status || 'Active';
 
     const queryText = `
       UPDATE paid_users 
-      SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4,
-          requested_days = $5, device_name = $6, mac_address = $7,
-          expiry_date = start_date + make_interval(days => $5::int)
-      WHERE id = $8;
+      SET user_name = $1,
+          phone_number = $2,
+          mpesa_code = $3,
+          amount_paid = $4,
+          requested_days = $5,
+          device_name = $6,
+          mac_address = $7,
+          status = $8,
+          is_approved = $9,
+          expiry_date = COALESCE(start_date, CURRENT_TIMESTAMP) + make_interval(days => $5::int)
+      WHERE id = $10;
     `;
-    await pool.query(queryText, [user_name, phone_number, mpesa_code, paidAmount, calculatedDays, device_name || '', mac_address || '', id]);
-    res.json({ success: true, message: 'User updated successfully.' });
+
+    await pool.query(queryText, [
+      user_name ? user_name.trim() : '',
+      phone_number ? phone_number.trim() : '',
+      mpesa_code ? mpesa_code.trim().toUpperCase() : '',
+      paidAmount,
+      calculatedDays,
+      device_name ? device_name.trim() : '',
+      mac_address ? mac_address.trim().toUpperCase() : '',
+      userStatus,
+      approvedFlag,
+      id
+    ]);
+
+    res.json({ success: true, message: 'All member details updated successfully.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -281,7 +324,6 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
     const amountNum = parseFloat(amount) || 0;
     const inputDays = parseInt(days, 10);
 
-    // If explicit days input is absent or invalid, derive strictly from amount via calculatePackageDays
     const daysNum = (!isNaN(inputDays) && inputDays > 0) 
       ? inputDays 
       : calculatePackageDays(amountNum);
