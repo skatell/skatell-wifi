@@ -94,9 +94,9 @@ initDb();
 // Helper function strictly mapping your custom offers: 200 = 30d, 100 = 10d, 50 = 2d
 function calculatePackageDays(amount) {
   const paid = parseFloat(amount) || 0;
-  if (paid >= 200) return 30;
-  if (paid >= 100) return 10;
-  if (paid >= 50) return 2;
+  if (paid === 200) return 30;
+  if (paid === 100) return 10;
+  if (paid === 50) return 2;
   return 1;
 }
 
