@@ -13,10 +13,40 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Initialize System Settings and ISP Tables
+// Initialize Tables and System Settings Automatically
 async function initDb() {
   try {
-    // 1. System Settings Table
+    // 1. Paid Users Table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS paid_users (
+        id SERIAL PRIMARY KEY,
+        phone_number VARCHAR(20) UNIQUE NOT NULL,
+        user_name VARCHAR(100) NOT NULL,
+        amount_paid NUMERIC(10, 2) DEFAULT 0,
+        mpesa_code VARCHAR(50) UNIQUE,
+        status VARCHAR(20) DEFAULT 'Pending',
+        is_approved INT DEFAULT 0,
+        requested_days INT DEFAULT 0,
+        start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expiry_date TIMESTAMP,
+        is_paused BOOLEAN DEFAULT FALSE,
+        remaining_seconds INT DEFAULT 0,
+        device_name VARCHAR(100),
+        mac_address VARCHAR(50)
+      );
+    `);
+
+    // 2. Blacklist Table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS blacklist (
+        id SERIAL PRIMARY KEY,
+        phone_number VARCHAR(20) UNIQUE NOT NULL,
+        reason TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 3. System Settings Table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS system_settings (
         key VARCHAR(50) PRIMARY KEY,
@@ -40,7 +70,7 @@ async function initDb() {
       `);
     }
 
-    // 2. ISP Settings Table (For direct days tracking)
+    // 4. ISP Settings Table (For direct days tracking)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS isp_settings (
         id INT PRIMARY KEY DEFAULT 1,
@@ -61,7 +91,7 @@ async function initDb() {
 }
 initDb();
 
-// Helper function to map amounts to package days (Updated to strictly handle 50=2d, 100=10d, 200=30d)
+// Helper function strictly mapping your custom offers: 200 = 30d, 100 = 10d, 50 = 2d
 function calculatePackageDays(amount) {
   const paid = parseFloat(amount) || 0;
   if (paid >= 200) return 30;
