@@ -13,7 +13,7 @@
         }
 
         body {
-            background-color: #0073e6; /* Blue background matching layout */
+            background-color: #0073e6;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -32,10 +32,9 @@
             padding: 20px;
         }
 
-        /* Top Title Banner */
         .title-banner {
             width: 100%;
-            background-color: #e60000; /* Red */
+            background-color: #e60000;
             color: white;
             text-align: center;
             padding: 20px 10px;
@@ -45,16 +44,15 @@
             border-radius: 4px;
         }
 
-        /* Middle Action Buttons Grid (Admin & User Login) */
         .nav-grid {
             width: 100%;
             display: flex;
             gap: 15px;
         }
 
-        .btn-admin {
+        .btn-buy {
             flex: 1;
-            background-color: #00b33c; /* Green */
+            background-color: #0073e6;
             color: white;
             border: none;
             padding: 25px 10px;
@@ -71,7 +69,7 @@
 
         .btn-user {
             flex: 1;
-            background-color: #6600cc; /* Purple */
+            background-color: #6600cc;
             color: white;
             border: none;
             padding: 25px 10px;
@@ -86,125 +84,46 @@
             transition: opacity 0.2s;
         }
 
-        /* Payment Page Button */
-        .btn-payment {
-            width: 100%;
-            background-color: #ffcc00; /* Yellow/Gold */
-            color: #cc0000; /* Red text */
-            border: none;
-            padding: 25px 10px;
-            font-size: 16px;
-            font-weight: bold;
-            text-transform: uppercase;
-            cursor: pointer;
-            border-radius: 4px;
-            text-align: center;
-            text-decoration: none;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: opacity 0.2s;
-        }
-
-        .btn-admin:hover, .btn-user:hover, .btn-payment:hover {
+        .btn-buy:hover, .btn-user:hover {
             opacity: 0.9;
         }
 
-        /* Help Box */
-        .help-box {
+        .admin-link-container {
+            margin-top: 10px;
+            text-align: center;
             width: 100%;
-            background-color: white;
-            color: #333;
-            text-align: center;
-            padding: 20px;
-            border-radius: 4px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
-        .help-box p {
-            font-size: 14px;
-            margin-bottom: 5px;
+        .admin-link-container a {
+            color: #ffffff;
+            font-size: 12px;
+            text-decoration: underline;
         }
 
-        .help-box .phone-number {
-            font-size: 18px;
-            font-weight: bold;
-            color: #000;
-            margin-bottom: 15px;
-        }
-
-        .help-actions {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .btn-whatsapp {
-            background-color: #25d366;
-            color: white;
-            padding: 8px 18px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .btn-call {
-            background-color: #4285f4;
-            color: white;
-            padding: 8px 18px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        /* Footer Signature */
-        .footer-signature {
-            width: 60%;
-            background-color: #f07b3f; /* Orange */
-            color: white;
-            text-align: center;
-            padding: 12px;
-            font-weight: bold;
-            border-radius: 4px;
-            letter-spacing: 1px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        .admin-link-container a:hover {
+            color: #e6e6e6;
         }
     </style>
 </head>
 <body>
 
     <div class="portal-container">
-        
-        <!-- Header Title -->
         <div class="title-banner">
-            ROGERS' WIFI ACCESS PORTAL
+            Roggers' WiFi Access Portal
         </div>
 
-        <!-- Navigation Row: Admin Login & User Login -->
         <div class="nav-grid">
-            <a href="/admin.html" class="btn-admin">ADMIN LOGIN</a>
-            <a href="/user" class="btn-user">USER LOGIN</a>
+            <!-- Points to your customer payment & registration form (login.html) -->
+            <a href="/login" class="btn-buy" style="background-color: #00b33c;">Buy Wi-Fi / Pay</a>
+            
+            <!-- Points to your user status/connection portal (user.html) -->
+            <a href="/user" class="btn-user">User Portal</a>
         </div>
 
-        <!-- Payment Page Button -->
-        <a href="/login" class="btn-payment">PAYMENT PAGE</a>
-
-        <!-- Help Section -->
-        <div class="help-box">
-            <p>Need help or having trouble?</p>
-            <p>Contact administrator via WhatsApp or Call:</p>
-            <div class="phone-number">0143 149 490</div>
-            <div class="help-actions">
-                <a href="https://wa.me/254143149490" target="_blank" class="btn-whatsapp">WhatsApp</a>
-                <a href="tel:0143149490" class="btn-call">Call</a>
-            </div>
+        <!-- Discreet link for yourself as the network owner -->
+        <div class="admin-link-container">
+            <a href="/admin-login">Network Owner / Admin Login</a>
         </div>
-
-        <!-- Footer Signature -->
-        <div class="footer-signature">
-            ROGERS
-        </div>
-
     </div>
 
 </body>
