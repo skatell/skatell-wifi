@@ -200,6 +200,63 @@
       box-sizing: border-box;
     }
     .full-width { grid-column: span 2; }
+
+    /* ISP Visual Component Styles */
+    .isp-widget-container {
+      width: 100%;
+      margin-bottom: 25px;
+    }
+    .isp-top-right {
+      display: flex;
+      justify-content: flex-end;
+      padding: 10px 20px 0 20px;
+    }
+    .isp-days-box {
+      border: 2px solid #2e1065;
+      color: #2e1065;
+      font-weight: bold;
+      text-align: center;
+      padding: 8px 18px;
+      font-size: 14px;
+      background: #ffffff;
+      border-radius: 4px;
+      line-height: 1.2;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .isp-progress-wrapper {
+      width: 95%;
+      margin: 15px auto 0 auto;
+    }
+    .isp-progress-bar {
+      display: flex;
+      height: 45px;
+      border: 1.5px solid #2e1065;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .bar-segment {
+      flex: 1;
+      transition: opacity 0.3s ease;
+    }
+    .red-segment   { background-color: #e52d27; }
+    .blue-segment  { background-color: #00a2ff; }
+    .green-segment { background-color: #70b04b; }
+    .isp-ticks {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      margin-top: 6px;
+      padding-left: 2px;
+      color: var(--text-color);
+    }
+    .dots {
+      letter-spacing: 3px;
+      color: var(--text-color);
+      opacity: 0.7;
+    }
   </style>
 </head>
 <body>
@@ -228,9 +285,39 @@
     <button class="logout-btn" onclick="logout()">Logout</button>
   </div>
 
-  <!-- Main View Container -->
+  <!-- Main Content Area -->
   <div class="main-content">
     
+    <!-- ISP Top-Right Box & Timeline Progress Bar Component -->
+    <div class="isp-widget-container">
+      <div class="isp-top-right">
+        <div id="ispDaysBox" class="isp-days-box">
+          <span id="ispDaysCount">30</span> DAYS<br>REMAINING
+        </div>
+      </div>
+
+      <div class="isp-progress-wrapper">
+        <div class="isp-progress-bar">
+          <div class="bar-segment red-segment"></div>
+          <div class="bar-segment blue-segment"></div>
+          <div class="bar-segment green-segment"></div>
+        </div>
+        <div class="isp-ticks">
+          <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+          <span>6</span><span>7</span><span>8</span><span>9</span>
+          <span class="dots">...................................................</span>
+          <span>30</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Refill Button (Admin Only) -->
+    <div style="display: flex; justify-content: flex-end; width: 95%; margin: 0 auto 15px auto;">
+      <button onclick="refillIspLink()" style="background:#2e1065; color:#ffffff; padding:10px 18px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
+        🔄 Refill 5G ISP Link (+30 Days)
+      </button>
+    </div>
+
     <!-- Active Members Section (Main Dashboard) -->
     <div id="dashboard" class="view-section active">
       <div class="card">
@@ -454,6 +541,48 @@
     function logout() {
       localStorage.removeItem('adminToken');
       window.location.href = '/login';
+    }
+
+    // ISP Widget Logic
+    async function updateIspWidget() {
+      try {
+        const res = await fetch('/api/isp-status');
+        const data = await res.json();
+        const days = data.days_left || 0;
+
+        document.getElementById('ispDaysCount').innerText = days;
+
+        const redSeg = document.querySelector('.red-segment');
+        const blueSeg = document.querySelector('.blue-segment');
+        const greenSeg = document.querySelector('.green-segment');
+
+        if (redSeg && blueSeg && greenSeg) {
+          redSeg.style.opacity = (days >= 1 && days <= 9) ? "1" : "0.35";
+          blueSeg.style.opacity = (days >= 10 && days <= 19) ? "1" : "0.35";
+          greenSeg.style.opacity = (days >= 20 && days <= 30) ? "1" : "0.35";
+        }
+      } catch (e) {
+        console.error('Failed to sync ISP Status:', e);
+      }
+    }
+
+    async function refillIspLink() {
+      if (!confirm("Are you sure you want to refill your 5G Router subscription for 30 Days?")) return;
+      try {
+        const res = await fetch('/api/admin/refill-isp', {
+          method: 'POST',
+          headers
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(data.message);
+          updateIspWidget();
+        } else {
+          alert("Refill Failed: " + data.error);
+        }
+      } catch (e) {
+        alert("Error processing refill: " + e.message);
+      }
     }
 
     // Export PDF Feature
@@ -711,12 +840,14 @@
     }
 
     function refreshAll() {
+      updateIspWidget();
       loadPending();
       loadUsers();
       loadBlacklist();
     }
 
     window.onload = refreshAll;
+    setInterval(updateIspWidget, 30000);
   </script>
 </body>
 </html>
