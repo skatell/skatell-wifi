@@ -1,102 +1,277 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Login - Roggers Wi-Fi</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f6f9;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .login-card {
-      background: #fff;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 350px;
-    }
-    h2 { margin-top: 0; color: #333; text-align: center; }
-    .form-group { margin-bottom: 15px; }
-    label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
-    input {
-      width: 100%;
-      padding: 10px;
-      box-sizing: border-box;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      background: #28a745;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    button:hover { background: #218838; }
-    .error-msg {
-      color: #dc3545;
-      font-size: 14px;
-      margin-top: 10px;
-      text-align: center;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wi-Fi Access Payment</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background-color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .payment-container {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        h2 {
+            font-size: 24px;
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        /* Payment Instructions Box */
+        .instructions-box {
+            width: 100%;
+            background-color: #e6ebf5;
+            border-left: 5px solid #0056b3;
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .instructions-box p {
+            font-size: 14px;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .instructions-box .highlight {
+            font-weight: bold;
+            color: #000;
+        }
+
+        .subtitle-text {
+            font-size: 13px;
+            color: #555;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        /* Form Inputs */
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+            background-color: #fff;
+            color: #333;
+            outline: none;
+        }
+
+        input::placeholder {
+            color: #888;
+        }
+
+        input:focus, select:focus {
+            border-color: #0056b3;
+        }
+
+        /* Auto-generated code field styling */
+        .auto-code {
+            background-color: #e9ecef;
+            color: #6c757d;
+        }
+
+        /* Submit Button */
+        .btn-verify {
+            width: 100%;
+            background-color: #2b70ff;
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: background 0.2s;
+        }
+
+        .btn-verify:hover {
+            background-color: #1a56db;
+        }
+
+        /* Portal Link */
+        .portal-link {
+            font-size: 13px;
+            color: #0056b3;
+            text-decoration: none;
+            text-align: center;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
+        .portal-link:hover {
+            text-decoration: underline;
+        }
+
+        hr {
+            width: 100%;
+            border: none;
+            border-top: 1px solid #eee;
+            margin: 10px 0;
+        }
+
+        /* Help Section */
+        .help-box {
+            width: 100%;
+            background-color: white;
+            color: #333;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .help-box p {
+            font-size: 13px;
+            margin-bottom: 3px;
+        }
+
+        .help-box .phone-number {
+            font-size: 16px;
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 10px;
+        }
+
+        .help-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-whatsapp {
+            background-color: #25d366;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .btn-call {
+            background-color: #4285f4;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .response-msg {
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 5px;
+        }
+    </style>
 </head>
 <body>
 
-  <div class="login-card">
-    <h2>Roggers Wi-Fi Login</h2>
-    <form id="loginForm">
-      <div class="form-group">
-        <label for="username">Username</label>
-        <input type="text" id="username" required autocomplete="off">
-      </div>
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" id="password" required>
-      </div>
-      <button type="submit">Login</button>
-      <div id="error" class="error-msg"></div>
-    </form>
-  </div>
+    <div class="payment-container">
+        <h2>Wi-Fi Access Payment</h2>
 
-  <script>
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value.trim();
-      const errorDiv = document.getElementById('error');
+        <!-- Instructions -->
+        <div class="instructions-box">
+            <p><span class="highlight">Payment Instructions:</span><br>
+            Send M-Pesa Payment to:<br>
+            <span class="highlight">Phone / Till:</span> 0143 149 490</p>
+        </div>
 
-      errorDiv.innerText = '';
+        <div class="subtitle-text">Enter your details to generate your access code and activate internet.</div>
 
-      try {
-        const res = await fetch('/api/admin/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
+        <!-- Payment Form -->
+        <form id="paymentForm" style="width: 100%; display: flex; flex-direction: column; gap: 12px;">
+            <input type="text" id="name" placeholder="Name (e.g. Lawi)" required>
+            <input type="text" id="phone" placeholder="Phone Number (e.g. 0712345678)" required>
+            <input type="text" id="deviceName" placeholder="Device Name (e.g. Tecno Spark 10, HP Laptop)" required>
+            <input type="text" id="macAddress" placeholder="Wi-Fi MAC Address (e.g. AA:BB:CC:DD:EE:FF)" required>
+            <input type="text" id="mpesaCode" placeholder="M-Pesa Transaction Code (e.g. QHX7...)" required>
+            
+            <select id="package" required>
+                <option value="" disabled selected>-- Select WiFi Package --</option>
+                <option value="25">2 Days - Ksh 25</option>
+                <option value="50">7 Days - Ksh 50</option>
+                <option value="100">14 Days - Ksh 100</option>
+                <option value="200">30 Days - Ksh 200</option>
+            </select>
+
+            <button type="submit" class="btn-verify">Verify & Connect</button>
+            <div id="responseMsg" class="response-msg"></div>
+        </form>
+
+        <a href="/user" class="portal-link">Already have an active plan? Click here to access your portal</a>
+
+        <hr>
+
+        <!-- Help Section matching your layout -->
+        <div class="help-box">
+            <p>Need help or having trouble?</p>
+            <p>Contact administrator via WhatsApp or Call:</p>
+            <div class="phone-number">0143 149 490</div>
+            <div class="help-actions">
+                <a href="https://wa.me/254143149490" target="_blank" class="btn-whatsapp">WhatsApp</a>
+                <a href="tel:0143149490" class="btn-call">Call</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const deviceName = document.getElementById('deviceName').value.trim();
+            const macAddress = document.getElementById('macAddress').value.trim();
+            const mpesaCode = document.getElementById('mpesaCode').value.trim();
+            const amount = document.getElementById('package').value;
+            const msgDiv = document.getElementById('responseMsg');
+
+            msgDiv.style.color = '#333';
+            msgDiv.innerText = 'Submitting payment for verification...';
+
+            try {
+                const res = await fetch('/api/verify-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, phone, deviceName, macAddress, mpesaCode, amount })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    msgDiv.style.color = '#28a745';
+                    msgDiv.innerText = data.message;
+                    document.getElementById('paymentForm').reset();
+                } else {
+                    msgDiv.style.color = '#dc3545';
+                    msgDiv.innerText = data.message || 'Verification failed.';
+                }
+            } catch (err) {
+                msgDiv.style.color = '#dc3545';
+                msgDiv.innerText = 'Server connection failed.';
+            }
         });
-
-        const data = await res.json();
-
-        if (data.success) {
-          localStorage.setItem('adminToken', data.token);
-          window.location.href = '/admin';
-        } else {
-          errorDiv.innerText = data.message || 'Invalid Username or Password!';
-        }
-      } catch (err) {
-        errorDiv.innerText = 'Server connection failed.';
-      }
-    });
-  </script>
+    </script>
 </body>
 </html>
