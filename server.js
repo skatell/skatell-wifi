@@ -236,7 +236,7 @@ app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
       SET is_approved = 1,
           status = 'Active',
           start_date = CURRENT_TIMESTAMP,
-          expiry_date = CURRENT_TIMESTAMP + ($1 * INTERVAL '1 day')
+          expiry_date = CURRENT_TIMESTAMP + make_interval(days => $1::int)
       WHERE id = $2;
     `;
     await pool.query(updateQuery, [days, id]);
@@ -256,7 +256,7 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
       UPDATE paid_users 
       SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4,
           device_name = $5, mac_address = $6,
-          expiry_date = start_date + ($7 * INTERVAL '1 day')
+          expiry_date = start_date + make_interval(days => $7::int)
       WHERE id = $8;
     `;
     await pool.query(queryText, [user_name, phone_number, mpesa_code, paidAmount, device_name || '', mac_address || '', calculatedDays, id]);
@@ -286,7 +286,7 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
       )
       VALUES (
         $1, $2, $3, $4, 'Active', 1, 
-        $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($5 || ' days')::INTERVAL, false, 0, $6, $7
+        $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + make_interval(days => $5::int), false, 0, $6, $7
       )
       ON CONFLICT (phone_number) DO UPDATE SET
         user_name = EXCLUDED.user_name,
@@ -300,7 +300,7 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
         is_paused = false,
         remaining_seconds = 0,
         start_date = CURRENT_TIMESTAMP,
-        expiry_date = CURRENT_TIMESTAMP + (EXCLUDED.requested_days || ' days')::INTERVAL;
+        expiry_date = CURRENT_TIMESTAMP + make_interval(days => EXCLUDED.requested_days::int);
     `;
 
     await pool.query(queryText, [
