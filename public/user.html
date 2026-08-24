@@ -98,7 +98,22 @@
       document.getElementById('loginPhone').value = '';
       document.getElementById('dashCard').style.display = 'none';
       document.getElementById('loginCard').style.display = 'block';
+      // Clear URL params on logout
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
+
+    // Step 1: Check URL for incoming parameters after payment and auto-login
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const name = urlParams.get('name');
+      const phone = urlParams.get('phone');
+
+      if (name && phone) {
+        document.getElementById('loginName').value = name;
+        document.getElementById('loginPhone').value = phone;
+        loginUser();
+      }
+    });
   </script>
 </body>
 </html>
