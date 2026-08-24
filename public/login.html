@@ -204,9 +204,8 @@
             
             <select id="package" required>
                 <option value="" disabled selected>-- Select WiFi Package --</option>
-                <option value="25">2 Days - Ksh 25</option>
-                <option value="50">7 Days - Ksh 50</option>
-                <option value="100">14 Days - Ksh 100</option>
+                <option value="50">2 Days - Ksh 50</option>
+                <option value="100">10 Days - Ksh 100</option>
                 <option value="200">30 Days - Ksh 200</option>
             </select>
 
@@ -256,7 +255,6 @@
                     msgDiv.innerText = data.message;
                     document.getElementById('paymentForm').reset();
                     
-                    // Optional: redirect to user portal after 4 seconds
                     setTimeout(() => {
                         window.location.href = '/user';
                     }, 4000);
