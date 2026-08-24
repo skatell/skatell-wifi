@@ -13,7 +13,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Initialize System Settings Table (Auto-create & set 30-day default ISP link if missing)
+// Initialize System Settings Table
 async function initDb() {
   try {
     await pool.query(`
@@ -28,6 +28,14 @@ async function initDb() {
       await pool.query(`
         INSERT INTO system_settings (key, value)
         VALUES ('isp_expiry_date', (CURRENT_TIMESTAMP + INTERVAL '30 days')::text);
+      `);
+    }
+
+    const checkAutoPause = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_auto_paused'");
+    if (checkAutoPause.rowCount === 0) {
+      await pool.query(`
+        INSERT INTO system_settings (key, value)
+        VALUES ('isp_auto_paused', 'false');
       `);
     }
   } catch (err) {
@@ -62,7 +70,7 @@ const requireAuthAPI = (req, res, next) => {
 
 // --- ISP System Endpoints ---
 
-// Public/Admin endpoint to fetch Main 5G ISP Remaining Days
+// Fetch Main 5G ISP Remaining Days
 app.get('/api/isp-status', async (req, res) => {
   try {
     const result = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_expiry_date'");
@@ -84,15 +92,100 @@ app.get('/api/isp-status', async (req, res) => {
   }
 });
 
+// Admin Endpoint to Edit ISP Days (0 to 30 Days) with Auto Pause/Resume logic
+app.post('/api/admin/update-isp-days', requireAuthAPI, async (req, res) => {
+  try {
+    const { days } = req.body;
+    const parsedDays = parseInt(days, 10);
+
+    if (isNaN(parsedDays) || parsedDays < 0 || parsedDays > 30) {
+      return res.status(400).json({ success: false, error: 'Days must be an integer between 0 and 30.' });
+    }
+
+    // Check current auto-pause flag
+    const autoPauseRes = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_auto_paused'");
+    const isAutoPaused = autoPauseRes.rowCount > 0 && autoPauseRes.rows[0].value === 'true';
+
+    // Update target ISP Expiry Date
+    await pool.query(`
+      INSERT INTO system_settings (key, value)
+      VALUES ('isp_expiry_date', (CURRENT_TIMESTAMP + ($1 || ' days')::interval)::text)
+      ON CONFLICT (key) DO UPDATE
+      SET value = (CURRENT_TIMESTAMP + ($1 || ' days')::interval)::text;
+    `, [parsedDays]);
+
+    // Scenario A: Days set to 0 -> Pause all active clients
+    if (parsedDays === 0) {
+      await pool.query(`
+        UPDATE paid_users 
+        SET is_paused = true, 
+            remaining_seconds = GREATEST(0, EXTRACT(EPOCH FROM (expiry_date - CURRENT_TIMESTAMP))::INT),
+            status = 'Paused'
+        WHERE is_approved = 1 AND is_paused = false AND expiry_date > CURRENT_TIMESTAMP;
+      `);
+
+      await pool.query(`
+        INSERT INTO system_settings (key, value) VALUES ('isp_auto_paused', 'true')
+        ON CONFLICT (key) DO UPDATE SET value = 'true';
+      `);
+    } 
+    // Scenario B: Days restored (>0) and system was previously auto-paused -> Resume clients
+    else if (parsedDays > 0 && isAutoPaused) {
+      await pool.query(`
+        UPDATE paid_users 
+        SET is_paused = false, 
+            expiry_date = CURRENT_TIMESTAMP + (remaining_seconds * INTERVAL '1 second'),
+            remaining_seconds = 0,
+            status = 'Active'
+        WHERE is_approved = 1 AND is_paused = true AND remaining_seconds > 0;
+      `);
+
+      await pool.query(`
+        INSERT INTO system_settings (key, value) VALUES ('isp_auto_paused', 'false')
+        ON CONFLICT (key) DO UPDATE SET value = 'false';
+      `);
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Main 5G Router link set to ${parsedDays} Days!`,
+      days_left: parsedDays 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Admin endpoint to refill Main ISP subscription by +30 Days
 app.post('/api/admin/refill-isp', requireAuthAPI, async (req, res) => {
   try {
+    // Check auto-pause state
+    const autoPauseRes = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_auto_paused'");
+    const isAutoPaused = autoPauseRes.rowCount > 0 && autoPauseRes.rows[0].value === 'true';
+
     await pool.query(`
       INSERT INTO system_settings (key, value)
       VALUES ('isp_expiry_date', (CURRENT_TIMESTAMP + INTERVAL '30 days')::text)
       ON CONFLICT (key) DO UPDATE
       SET value = (CURRENT_TIMESTAMP + INTERVAL '30 days')::text;
     `);
+
+    if (isAutoPaused) {
+      await pool.query(`
+        UPDATE paid_users 
+        SET is_paused = false, 
+            expiry_date = CURRENT_TIMESTAMP + (remaining_seconds * INTERVAL '1 second'),
+            remaining_seconds = 0,
+            status = 'Active'
+        WHERE is_approved = 1 AND is_paused = true AND remaining_seconds > 0;
+      `);
+
+      await pool.query(`
+        INSERT INTO system_settings (key, value) VALUES ('isp_auto_paused', 'false')
+        ON CONFLICT (key) DO UPDATE SET value = 'false';
+      `);
+    }
+
     res.json({ success: true, message: 'Main 5G Router Subscription successfully refilled for 30 Days!' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
