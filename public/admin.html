@@ -261,7 +261,7 @@
           <input type="text" id="regDevice" placeholder="Device Name (e.g. Tecno Spark 10)">
           <input type="text" id="regMac" placeholder="MAC Address (e.g. AA:BB:CC:DD:EE:FF)">
           <input type="number" id="regAmount" placeholder="Amount (KES)" required>
-          <input type="number" id="regDays" placeholder="Days Access">
+          <input type="number" id="regDays" placeholder="Days Access" min="1" value="1">
           <button type="submit">Register User</button>
         </form>
       </div>
@@ -340,7 +340,7 @@
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
       
       document.getElementById(tabId).classList.add('active');
-      element.classList.add('active');
+      if (element) element.classList.add('active');
     }
 
     // Theme Switcher Logic
@@ -363,7 +363,6 @@
     function exportPDF() {
       const element = document.getElementById('pdfContent');
       
-      // Temporary hide action buttons for print out
       const style = document.createElement('style');
       style.id = 'hide-actions';
       style.innerHTML = '.no-print, tbody button { display: none !important; }';
@@ -497,24 +496,43 @@
     async function handleManualRegister(e) {
       e.preventDefault();
       const body = {
-        name: document.getElementById('regName').value,
-        phone: document.getElementById('regPhone').value,
-        device_name: document.getElementById('regDevice').value,
-        mac_address: document.getElementById('regMac').value,
-        amount: document.getElementById('regAmount').value,
-        days: document.getElementById('regDays').value
+        name: document.getElementById('regName').value.trim(),
+        phone: document.getElementById('regPhone').value.trim(),
+        device_name: document.getElementById('regDevice').value.trim(),
+        mac_address: document.getElementById('regMac').value.trim(),
+        amount: parseFloat(document.getElementById('regAmount').value) || 0,
+        days: parseInt(document.getElementById('regDays').value, 10) || 1
       };
-      const res = await fetch('/api/admin/register', { method: 'POST', headers, body: JSON.stringify(body) });
-      const data = await res.json();
-      alert(data.message || 'Done');
-      e.target.reset();
-      refreshAll();
+
+      try {
+        const res = await fetch('/api/admin/register', { 
+          method: 'POST', 
+          headers, 
+          body: JSON.stringify(body) 
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          alert(data.message || 'User registered successfully!');
+          e.target.reset();
+          refreshAll();
+          
+          const dashboardTab = document.querySelector('.nav-item[onclick*="dashboard"]');
+          switchTab('dashboard', dashboardTab);
+        } else {
+          alert(data.error || 'Registration failed');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Network error while registering user.');
+      }
     }
 
     async function handleBlacklist(e) {
       e.preventDefault();
-      const phone = document.getElementById('blackPhone').value;
-      const reason = document.getElementById('blackReason').value;
+      const phone = document.getElementById('blackPhone').value.trim();
+      const reason = document.getElementById('blackReason').value.trim();
       await fetch('/api/admin/blacklist', { method: 'POST', headers, body: JSON.stringify({ phone, reason }) });
       e.target.reset();
       loadBlacklist();
