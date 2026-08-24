@@ -39,6 +39,64 @@
       transition: background 0.3s, color 0.3s;
     }
 
+    /* Admin Login Overlay */
+    #adminLoginOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 99999;
+    }
+    .admin-login-box {
+      background: var(--card-bg);
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+      border: 1px solid var(--border-color);
+      text-align: center;
+    }
+    .admin-login-box h2 {
+      margin-top: 0;
+      color: #38bdf8;
+      margin-bottom: 20px;
+    }
+    .admin-login-box input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-color);
+      color: var(--text-color);
+      box-sizing: border-box;
+    }
+    .admin-login-box button {
+      width: 100%;
+      padding: 12px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .admin-login-box button:hover {
+      background: #0056b3;
+    }
+    #loginError {
+      color: #dc3545;
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+    }
+
     /* Sidebar Navigation */
     .sidebar {
       width: 250px;
@@ -260,6 +318,19 @@
   </style>
 </head>
 <body>
+
+  <!-- Admin Login Overlay (Shows up automatically if not authenticated) -->
+  <div id="adminLoginOverlay" style="display: none;">
+    <div class="admin-login-box">
+      <h2>Admin Sign In</h2>
+      <form onsubmit="handleAdminLogin(event)">
+        <input type="text" id="adminUser" placeholder="Username" required>
+        <input type="password" id="adminPass" placeholder="Password" required>
+        <button type="submit">Login to Dashboard</button>
+        <div id="loginError">Invalid Username or Password!</div>
+      </form>
+    </div>
+  </div>
 
   <!-- Left Sidebar Navigation -->
   <div class="sidebar">
@@ -520,13 +591,47 @@
   </div>
 
   <script>
-    const token = localStorage.getItem('adminToken');
-    if (!token) window.location.href = '/login';
-
-    const headers = {
+    let token = localStorage.getItem('adminToken');
+    let headers = {
       'Content-Type': 'application/json',
-      'x-admin-token': token
+      'x-admin-token': token || ''
     };
+
+    // Check if token exists, if not show login popup instead of redirecting
+    if (!token) {
+      document.getElementById('adminLoginOverlay').style.display = 'flex';
+    }
+
+    // Handle inline login submit
+    async function handleAdminLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('adminUser').value.trim();
+      const password = document.getElementById('adminPass').value.trim();
+      const errorEl = document.getElementById('loginError');
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (data.success && data.token) {
+          localStorage.setItem('adminToken', data.token);
+          token = data.token;
+          headers['x-admin-token'] = token;
+          document.getElementById('adminLoginOverlay').style.display = 'none';
+          errorEl.style.display = 'none';
+          refreshAll();
+        } else {
+          errorEl.style.display = 'block';
+        }
+      } catch (err) {
+        errorEl.innerText = 'Network error during login';
+        errorEl.style.display = 'block';
+      }
+    }
 
     // Navigation Switcher
     function switchTab(tabId, element) {
@@ -550,7 +655,7 @@
 
     function logout() {
       localStorage.removeItem('adminToken');
-      window.location.href = '/login';
+      document.getElementById('adminLoginOverlay').style.display = 'flex';
     }
 
     // ISP Widget Logic & Interactive Controls
@@ -623,11 +728,11 @@
       document.head.appendChild(style);
 
       const opt = {
-        margin:        0.5,
-        filename:      'active_members_report.pdf',
-        image:         { type: 'jpeg', quality: 0.98 },
+        margin:      0.5,
+        filename:    'active_members_report.pdf',
+        image:       { type: 'jpeg', quality: 0.98 },
         html2canvas:   { scale: 2 },
-        jsPDF:         { unit: 'in', format: 'letter', orientation: 'landscape' }
+        jsPDF:       { unit: 'in', format: 'letter', orientation: 'landscape' }
       };
 
       html2pdf().set(opt).from(element).save().then(() => {
@@ -868,14 +973,21 @@
     }
 
     function refreshAll() {
+      if (!token) return;
       updateIspWidget();
       loadPending();
       loadUsers();
       loadBlacklist();
     }
 
-    window.onload = refreshAll;
-    setInterval(updateIspWidget, 30000);
+    window.onload = () => {
+      if (token) {
+        refreshAll();
+      }
+    };
+    setInterval(() => {
+      if (token) updateIspWidget();
+    }, 30000);
   </script>
 </body>
 </html>
