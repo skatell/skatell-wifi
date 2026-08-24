@@ -78,7 +78,7 @@ app.post('/api/admin/change-credentials', requireAuthAPI, (req, res) => {
   return res.json({ success: true, message: 'Credentials updated successfully!' });
 });
 
-// User Portal Login Endpoint (Updated with formatted payment_date and end_date)
+// User Portal Login Endpoint
 app.post('/api/user/login', async (req, res) => {
   try {
     let { name, phone } = req.body;
@@ -176,7 +176,7 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// Member Dashboard Management Endpoints (Active Users - Updated with formatted payment_date and end_date)
+// Member Dashboard Management Endpoints (Active Users)
 app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
   try {
     const queryText = `
@@ -236,7 +236,7 @@ app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
       SET is_approved = 1,
           status = 'Active',
           start_date = CURRENT_TIMESTAMP,
-          expiry_date = CURRENT_TIMESTAMP + ($1 || ' days')::INTERVAL
+          expiry_date = CURRENT_TIMESTAMP + ($1 * INTERVAL '1 day')
       WHERE id = $2;
     `;
     await pool.query(updateQuery, [days, id]);
@@ -256,7 +256,7 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
       UPDATE paid_users 
       SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4,
           device_name = $5, mac_address = $6,
-          expiry_date = start_date + ($7 || ' days')::INTERVAL
+          expiry_date = start_date + ($7 * INTERVAL '1 day')
       WHERE id = $8;
     `;
     await pool.query(queryText, [user_name, phone_number, mpesa_code, paidAmount, device_name || '', mac_address || '', calculatedDays, id]);
@@ -270,6 +270,11 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
 app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
   try {
     const { phone, name, amount, days, device_name, mac_address } = req.body;
+
+    if (!phone || !name) {
+      return res.status(400).json({ success: false, message: 'Name and phone number are required.' });
+    }
+
     const amountNum = parseFloat(amount) || 200;
     const daysNum = days ? parseInt(days, 10) : calculatePackageDays(amountNum);
     const mpesaCode = 'MANUAL_' + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -281,7 +286,7 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
       )
       VALUES (
         $1, $2, $3, $4, 'Active', 1, 
-        $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($5 || ' days')::INTERVAL, false, 0, $6, $7
+        $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($5 * INTERVAL '1 day'), false, 0, $6, $7
       )
       ON CONFLICT (phone_number) DO UPDATE SET
         user_name = EXCLUDED.user_name,
@@ -295,7 +300,7 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
         is_paused = false,
         remaining_seconds = 0,
         start_date = CURRENT_TIMESTAMP,
-        expiry_date = CURRENT_TIMESTAMP + (EXCLUDED.requested_days || ' days')::INTERVAL;
+        expiry_date = CURRENT_TIMESTAMP + (EXCLUDED.requested_days * INTERVAL '1 day');
     `;
 
     await pool.query(queryText, [
@@ -310,7 +315,7 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
 
     res.json({ success: true, message: 'User registered and activated successfully!' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -335,7 +340,7 @@ app.post('/api/admin/toggle-pause', requireAuthAPI, async (req, res) => {
       const resumeQuery = `
         UPDATE paid_users 
         SET is_paused = false, 
-            expiry_date = CURRENT_TIMESTAMP + (remaining_seconds || ' seconds')::INTERVAL,
+            expiry_date = CURRENT_TIMESTAMP + (remaining_seconds * INTERVAL '1 second'),
             remaining_seconds = 0
         WHERE id = $1;
       `;
