@@ -229,12 +229,15 @@ app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
     const userRes = await pool.query('SELECT requested_days, amount_paid FROM paid_users WHERE id = $1', [id]);
     if (userRes.rowCount === 0) return res.status(404).json({ success: false, message: 'User not found' });
 
-    const days = userRes.rows[0].requested_days || calculatePackageDays(userRes.rows[0].amount_paid);
+    const days = (userRes.rows[0].requested_days && parseInt(userRes.rows[0].requested_days, 10) > 0)
+      ? parseInt(userRes.rows[0].requested_days, 10)
+      : calculatePackageDays(userRes.rows[0].amount_paid);
 
     const updateQuery = `
       UPDATE paid_users 
       SET is_approved = 1,
           status = 'Active',
+          requested_days = $1,
           start_date = CURRENT_TIMESTAMP,
           expiry_date = CURRENT_TIMESTAMP + make_interval(days => $1::int)
       WHERE id = $2;
@@ -255,11 +258,11 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
     const queryText = `
       UPDATE paid_users 
       SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4,
-          device_name = $5, mac_address = $6,
-          expiry_date = start_date + make_interval(days => $7::int)
+          requested_days = $5, device_name = $6, mac_address = $7,
+          expiry_date = start_date + make_interval(days => $5::int)
       WHERE id = $8;
     `;
-    await pool.query(queryText, [user_name, phone_number, mpesa_code, paidAmount, device_name || '', mac_address || '', calculatedDays, id]);
+    await pool.query(queryText, [user_name, phone_number, mpesa_code, paidAmount, calculatedDays, device_name || '', mac_address || '', id]);
     res.json({ success: true, message: 'User updated successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -275,8 +278,14 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name and phone number are required.' });
     }
 
-    const amountNum = parseFloat(amount) || 200;
-    const daysNum = days ? parseInt(days, 10) : calculatePackageDays(amountNum);
+    const amountNum = parseFloat(amount) || 0;
+    const inputDays = parseInt(days, 10);
+
+    // If explicit days input is absent or invalid, derive strictly from amount via calculatePackageDays
+    const daysNum = (!isNaN(inputDays) && inputDays > 0) 
+      ? inputDays 
+      : calculatePackageDays(amountNum);
+
     const mpesaCode = 'MANUAL_' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
     const queryText = `
@@ -313,7 +322,7 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
       mac_address ? mac_address.trim().toUpperCase() : '00:00:00:00:00:00'
     ]);
 
-    res.json({ success: true, message: 'User registered and activated successfully!' });
+    res.json({ success: true, message: `User registered and activated successfully with ${daysNum} days!` });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
