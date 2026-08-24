@@ -149,6 +149,7 @@
     .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; margin-right: 4px; }
     .btn-approve { background: #28a745; color: white; }
     .btn-pause { background: #ffc107; color: black; }
+    .btn-edit { background: #0284c7; color: white; }
     .btn-delete { background: #dc3545; color: white; }
     .btn-pdf { background: #10b981; color: white; padding: 8px 16px; font-size: 14px; }
 
@@ -156,6 +157,49 @@
     .form-group { display: flex; flex-direction: column; gap: 12px; max-width: 500px; }
     .form-group input, .form-group select { padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--card-bg); color: var(--text-color); }
     .form-group button { background: #007bff; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; width: fit-content; }
+
+    /* Modal Styles */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      z-index: 9999;
+    }
+    .modal-content {
+      background: var(--card-bg);
+      color: var(--text-color);
+      margin: 3% auto;
+      padding: 25px;
+      width: 90%;
+      max-width: 500px;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .modal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .modal-grid label {
+      font-size: 12px;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+    .modal-grid input, .modal-grid select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 2px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-color);
+      color: var(--text-color);
+      box-sizing: border-box;
+    }
+    .full-width { grid-column: span 2; }
   </style>
 </head>
 <body>
@@ -323,6 +367,59 @@
       </div>
     </div>
 
+    <!-- Edit User Modal -->
+    <div id="editModal" class="modal-overlay">
+      <div class="modal-content">
+        <h3 style="margin-top:0;">Edit Member Details</h3>
+        <input type="hidden" id="edit_id" />
+        
+        <div class="modal-grid">
+          <div class="full-width">
+            <label>Name</label>
+            <input type="text" id="edit_user_name" />
+          </div>
+          <div>
+            <label>Phone Number</label>
+            <input type="text" id="edit_phone_number" />
+          </div>
+          <div>
+            <label>M-Pesa Code</label>
+            <input type="text" id="edit_mpesa_code" />
+          </div>
+          <div>
+            <label>Amount (KES)</label>
+            <input type="number" id="edit_amount_paid" />
+          </div>
+          <div>
+            <label>Days Granted</label>
+            <input type="number" id="edit_requested_days" />
+          </div>
+          <div class="full-width">
+            <label>Device Name</label>
+            <input type="text" id="edit_device_name" />
+          </div>
+          <div class="full-width">
+            <label>MAC Address</label>
+            <input type="text" id="edit_mac_address" />
+          </div>
+          <div class="full-width">
+            <label>Status</label>
+            <select id="edit_status">
+              <option value="Active">Active</option>
+              <option value="Pending">Pending</option>
+              <option value="Expired">Expired</option>
+              <option value="Paused">Paused</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+          <button class="btn btn-approve" onclick="saveUserEdit()">Save Changes</button>
+          <button class="btn btn-delete" onclick="closeEditModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script>
@@ -431,6 +528,8 @@
           if (u.status === 'Paused') badgeClass = 'badge-paused';
           if (u.status === 'Expired') badgeClass = 'badge-expired';
 
+          const jsonString = JSON.stringify(u).replace(/'/g, "&apos;");
+
           return `
             <tr>
               <td>${u.id}</td>
@@ -446,12 +545,66 @@
               <td><span class="badge ${badgeClass}">${u.status}</span></td>
               <td class="no-print">
                 <button class="btn btn-pause" onclick="togglePause(${u.id})">${u.is_paused ? 'Resume' : 'Pause'}</button>
+                <button class="btn btn-edit" onclick='openEditModal(${jsonString})'>Edit</button>
                 <button class="btn btn-delete" onclick="deleteUser(${u.id})">Delete</button>
               </td>
             </tr>
           `;
         }).join('');
       } catch (err) { console.error(err); }
+    }
+
+    // Modal Control Functions
+    function openEditModal(user) {
+      document.getElementById('edit_id').value = user.id;
+      document.getElementById('edit_user_name').value = user.user_name || '';
+      document.getElementById('edit_phone_number').value = user.phone_number || '';
+      document.getElementById('edit_mpesa_code').value = user.mpesa_code || '';
+      document.getElementById('edit_amount_paid').value = user.amount_paid || 0;
+      document.getElementById('edit_requested_days').value = user.requested_days || user.days_left || 1;
+      document.getElementById('edit_device_name').value = user.device_name || '';
+      document.getElementById('edit_mac_address').value = user.mac_address || '';
+      document.getElementById('edit_status').value = user.status || 'Active';
+
+      document.getElementById('editModal').style.display = 'block';
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').style.display = 'none';
+    }
+
+    async function saveUserEdit() {
+      const payload = {
+        id: document.getElementById('edit_id').value,
+        user_name: document.getElementById('edit_user_name').value,
+        phone_number: document.getElementById('edit_phone_number').value,
+        mpesa_code: document.getElementById('edit_mpesa_code').value,
+        amount_paid: document.getElementById('edit_amount_paid').value,
+        requested_days: document.getElementById('edit_requested_days').value,
+        device_name: document.getElementById('edit_device_name').value,
+        mac_address: document.getElementById('edit_mac_address').value,
+        status: document.getElementById('edit_status').value
+      };
+
+      try {
+        const res = await fetch('/api/admin/update-user', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          alert(data.message || 'User updated successfully!');
+          closeEditModal();
+          refreshAll();
+        } else {
+          alert('Failed to update: ' + (data.message || data.error));
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error sending update request.');
+      }
     }
 
     async function loadBlacklist() {
