@@ -30,7 +30,7 @@ const activeSessions = new Set();
 
 // Guard Middleware
 const requireAuthAPI = (req, res, next) => {
-  const token = req.headers['x-admin-token'];
+  const token = req.headers['x-admin-token'] || req.headers['authorization'];
   if (token && activeSessions.has(token)) {
     return next();
   }
@@ -173,7 +173,7 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// Member Dashboard Management Endpoints
+// Member Dashboard Management Endpoints (Active Users)
 app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
   try {
     const queryText = `
@@ -191,7 +191,7 @@ app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
       END AS days_left
       FROM paid_users 
       WHERE is_approved = 1
-      ORDER BY start_date DESC;
+      ORDER BY id DESC;
     `;
     const result = await pool.query(queryText);
     res.json(result.rows);
@@ -260,32 +260,49 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
   }
 });
 
-// Manual Registration Endpoint
+// Manual Registration Endpoint (Creates Active Users Immediately)
 app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
   try {
     const { phone, name, amount, days, device_name, mac_address } = req.body;
     const amountNum = parseFloat(amount) || 200;
     const daysNum = days ? parseInt(days, 10) : calculatePackageDays(amountNum);
+    const mpesaCode = 'MANUAL_' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
     const queryText = `
-      INSERT INTO paid_users (phone_number, user_name, amount_paid, mpesa_code, status, is_approved, requested_days, start_date, expiry_date, is_paused, remaining_seconds, device_name, mac_address)
-      VALUES ($1, $2, $3, 'MANUAL_REG', 'Active', 1, $4::INTEGER, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL, false, 0, $5, $6)
+      INSERT INTO paid_users (
+        phone_number, user_name, amount_paid, mpesa_code, status, is_approved, 
+        requested_days, start_date, expiry_date, is_paused, remaining_seconds, device_name, mac_address
+      )
+      VALUES (
+        $1, $2, $3, $4, 'Active', 1, 
+        $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($5 || ' days')::INTERVAL, false, 0, $6, $7
+      )
       ON CONFLICT (phone_number) DO UPDATE SET
         user_name = EXCLUDED.user_name,
         amount_paid = EXCLUDED.amount_paid,
-        mpesa_code = 'MANUAL_REG',
+        mpesa_code = EXCLUDED.mpesa_code,
         device_name = EXCLUDED.device_name,
         mac_address = EXCLUDED.mac_address,
         status = 'Active',
         is_approved = 1,
-        requested_days = $4::INTEGER,
+        requested_days = EXCLUDED.requested_days,
         is_paused = false,
         remaining_seconds = 0,
         start_date = CURRENT_TIMESTAMP,
-        expiry_date = CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL;
+        expiry_date = CURRENT_TIMESTAMP + (EXCLUDED.requested_days || ' days')::INTERVAL;
     `;
-    await pool.query(queryText, [phone, name, amountNum, daysNum, device_name || 'Manual Device', mac_address || '00:00:00:00:00:00']);
-    res.json({ success: true, message: 'User registered successfully.' });
+
+    await pool.query(queryText, [
+      phone.trim(), 
+      name.trim(), 
+      amountNum, 
+      mpesaCode, 
+      daysNum, 
+      device_name ? device_name.trim() : 'Manual Device', 
+      mac_address ? mac_address.trim().toUpperCase() : '00:00:00:00:00:00'
+    ]);
+
+    res.json({ success: true, message: 'User registered and activated successfully!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
