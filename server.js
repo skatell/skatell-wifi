@@ -31,6 +31,7 @@ const requireAuthAPI = (req, res, next) => {
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+app.get('/user', (req, res) => res.sendFile(path.join(__dirname, 'public', 'user.html')));
 
 // Admin Login
 app.post('/api/admin/login', (req, res) => {
@@ -55,6 +56,43 @@ app.post('/api/admin/change-credentials', requireAuthAPI, (req, res) => {
   ADMIN_USER = newUsername.trim();
   ADMIN_PASS = newPassword.trim();
   return res.json({ success: true, message: 'Credentials updated successfully!' });
+});
+
+// User Portal Login Endpoint
+app.post('/api/user/login', async (req, res) => {
+  try {
+    let { name, phone } = req.body;
+    name = String(name || '').trim();
+    phone = String(phone || '').trim();
+
+    if (!name || !phone) {
+      return res.status(400).json({ success: false, message: 'Please enter both your name and phone number.' });
+    }
+
+    const queryText = `
+      SELECT id, phone_number, user_name, mpesa_code, amount_paid, start_date, expiry_date, is_paused, remaining_seconds,
+      CASE 
+        WHEN is_paused THEN 'Paused'
+        WHEN CURRENT_TIMESTAMP > expiry_date THEN 'Expired'
+        ELSE 'Active'
+      END AS status,
+      CASE 
+        WHEN is_paused THEN CEIL(remaining_seconds / 86400.0)
+        ELSE GREATEST(0, CEIL(EXTRACT(EPOCH FROM (expiry_date - CURRENT_TIMESTAMP)) / 86400.0))
+      END AS days_left
+      FROM paid_users 
+      WHERE phone_number = $1 AND LOWER(user_name) = LOWER($2);
+    `;
+    const result = await pool.query(queryText, [phone, name]);
+
+    if (result.rowCount === 0) {
+      return res.status(401).json({ success: false, message: 'Account not found. Ensure your name and phone number match your payment details.' });
+    }
+
+    return res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: `Server error: ${err.message}` });
+  }
 });
 
 // Public Payment Verification Endpoint (Enforces Blacklist & Handles Expired/Renewal Users)
