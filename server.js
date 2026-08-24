@@ -61,7 +61,7 @@ async function initDb() {
 }
 initDb();
 
-// Helper function to map amounts to package days (Updated)
+// Helper function to map amounts to package days (Updated to strictly handle 50=2d, 100=10d, 200=30d)
 function calculatePackageDays(amount) {
   const paid = parseFloat(amount) || 0;
   if (paid >= 200) return 30;
@@ -534,7 +534,6 @@ app.delete('/api/admin/blacklist/:phone', requireAuthAPI, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// FIXED: Catch-all fallback route now correctly points to index.html
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
