@@ -90,7 +90,7 @@ app.post('/api/user/login', async (req, res) => {
     }
 
     const queryText = `
-      SELECT id, phone_number, user_name, mpesa_code, amount_paid, start_date, expiry_date, is_paused, remaining_seconds, is_approved,
+      SELECT id, phone_number, user_name, mpesa_code, amount_paid, device_name, mac_address, start_date, expiry_date, is_paused, remaining_seconds, is_approved,
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
         WHEN is_paused THEN 'Paused'
@@ -120,14 +120,16 @@ app.post('/api/user/login', async (req, res) => {
 // Public Payment Verification / Submission Endpoint
 app.post('/api/verify-payment', async (req, res) => {
   try {
-    let { name, phone, mpesaCode, amount } = req.body;
-    if (!name || !phone || !mpesaCode || !amount) {
-      return res.status(400).json({ success: false, message: 'Provide name, phone number, transaction code, and package.' });
+    let { name, phone, mpesaCode, amount, deviceName, macAddress } = req.body;
+    if (!name || !phone || !mpesaCode || !amount || !deviceName || !macAddress) {
+      return res.status(400).json({ success: false, message: 'Provide name, phone number, transaction code, package, device name, and MAC address.' });
     }
 
     name = String(name).trim();
     phone = String(phone).trim();
     mpesaCode = String(mpesaCode).trim().toUpperCase();
+    deviceName = String(deviceName).trim();
+    macAddress = String(macAddress).trim().toUpperCase();
     const paidAmount = parseFloat(amount) || 0;
 
     // Check Blacklist
@@ -146,14 +148,16 @@ app.post('/api/verify-payment', async (req, res) => {
     if (checkCode.rowCount > 0) return res.status(400).json({ success: false, message: 'M-Pesa code already used.' });
 
     const queryText = `
-      INSERT INTO paid_users (user_name, phone_number, amount_paid, mpesa_code, status, is_approved, requested_days, start_date, expiry_date, is_paused, remaining_seconds)
-      VALUES ($1, $2, $3, $4, 'Pending', 0, $5, NULL, NULL, false, 0)
+      INSERT INTO paid_users (user_name, phone_number, amount_paid, mpesa_code, status, is_approved, requested_days, start_date, expiry_date, is_paused, remaining_seconds, device_name, mac_address)
+      VALUES ($1, $2, $3, $4, 'Pending', 0, $5, NULL, NULL, false, 0, $6, $7)
       ON CONFLICT (phone_number) 
       DO UPDATE SET 
         user_name = EXCLUDED.user_name,
         mpesa_code = EXCLUDED.mpesa_code,
         amount_paid = EXCLUDED.amount_paid,
         requested_days = EXCLUDED.requested_days,
+        device_name = EXCLUDED.device_name,
+        mac_address = EXCLUDED.mac_address,
         status = 'Pending',
         is_approved = 0,
         is_paused = false,
@@ -162,7 +166,7 @@ app.post('/api/verify-payment', async (req, res) => {
         expiry_date = NULL
       RETURNING *;
     `;
-    await pool.query(queryText, [name, phone, paidAmount, mpesaCode, calculatedDays]);
+    await pool.query(queryText, [name, phone, paidAmount, mpesaCode, calculatedDays, deviceName, macAddress]);
     return res.json({ success: true, message: `Submission received! Account status is Pending until Admin approval.` });
   } catch (err) {
     return res.status(500).json({ success: false, message: `Database error: ${err.message}` });
@@ -173,7 +177,7 @@ app.post('/api/verify-payment', async (req, res) => {
 app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
   try {
     const queryText = `
-      SELECT id, phone_number, user_name, mpesa_code, amount_paid, start_date, expiry_date, is_paused, remaining_seconds, is_approved,
+      SELECT id, phone_number, user_name, mpesa_code, amount_paid, device_name, mac_address, start_date, expiry_date, is_paused, remaining_seconds, is_approved,
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
         WHEN is_paused THEN 'Paused'
@@ -200,7 +204,8 @@ app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
 app.get('/api/admin/pending-approvals', requireAuthAPI, async (req, res) => {
   try {
     const queryText = `
-      SELECT * FROM paid_users 
+      SELECT id, phone_number, user_name, mpesa_code, amount_paid, device_name, mac_address, requested_days, status, is_approved
+      FROM paid_users 
       WHERE is_approved = 0 OR is_approved IS NULL OR status = 'Pending' 
       ORDER BY id DESC;
     `;
@@ -237,17 +242,18 @@ app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
 
 app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
   try {
-    const { id, user_name, phone_number, mpesa_code, amount_paid } = req.body;
+    const { id, user_name, phone_number, mpesa_code, amount_paid, device_name, mac_address } = req.body;
     const paidAmount = parseFloat(amount_paid) || 0;
     const calculatedDays = calculatePackageDays(paidAmount);
 
     const queryText = `
       UPDATE paid_users 
       SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4,
-          expiry_date = start_date + ($5 || ' days')::INTERVAL
-      WHERE id = $6;
+          device_name = $5, mac_address = $6,
+          expiry_date = start_date + ($7 || ' days')::INTERVAL
+      WHERE id = $8;
     `;
-    await pool.query(queryText, [user_name, phone_number, mpesa_code, paidAmount, calculatedDays, id]);
+    await pool.query(queryText, [user_name, phone_number, mpesa_code, paidAmount, device_name || '', mac_address || '', calculatedDays, id]);
     res.json({ success: true, message: 'User updated successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -257,17 +263,19 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
 // Manual Registration Endpoint
 app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
   try {
-    const { phone, name, amount, days } = req.body;
+    const { phone, name, amount, days, device_name, mac_address } = req.body;
     const amountNum = parseFloat(amount) || 200;
     const daysNum = days ? parseInt(days, 10) : calculatePackageDays(amountNum);
 
     const queryText = `
-      INSERT INTO paid_users (phone_number, user_name, amount_paid, mpesa_code, status, is_approved, requested_days, start_date, expiry_date, is_paused, remaining_seconds)
-      VALUES ($1, $2, $3, 'MANUAL_REG', 'Active', 1, $4::INTEGER, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL, false, 0)
+      INSERT INTO paid_users (phone_number, user_name, amount_paid, mpesa_code, status, is_approved, requested_days, start_date, expiry_date, is_paused, remaining_seconds, device_name, mac_address)
+      VALUES ($1, $2, $3, 'MANUAL_REG', 'Active', 1, $4::INTEGER, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL, false, 0, $5, $6)
       ON CONFLICT (phone_number) DO UPDATE SET
         user_name = EXCLUDED.user_name,
         amount_paid = EXCLUDED.amount_paid,
         mpesa_code = 'MANUAL_REG',
+        device_name = EXCLUDED.device_name,
+        mac_address = EXCLUDED.mac_address,
         status = 'Active',
         is_approved = 1,
         requested_days = $4::INTEGER,
@@ -276,7 +284,7 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
         start_date = CURRENT_TIMESTAMP,
         expiry_date = CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL;
     `;
-    await pool.query(queryText, [phone, name, amountNum, daysNum]);
+    await pool.query(queryText, [phone, name, amountNum, daysNum, device_name || 'Manual Device', mac_address || '00:00:00:00:00:00']);
     res.json({ success: true, message: 'User registered successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
