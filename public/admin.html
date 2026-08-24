@@ -3,490 +3,353 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Roggers Wi-Fi Admin</title>
-
-  <!-- PDF Generation Libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-
+  <title>Admin Dashboard</title>
   <style>
-    :root {
-      --bg-color: #f4f6f9;
-      --card-bg: #ffffff;
-      --text-color: #333333;
-      --border-color: #dddddd;
-      --header-bg: #28a745;
-    }
-    body.dark-theme {
-      --bg-color: #1e1e2f;
-      --card-bg: #2d2d44;
-      --text-color: #ffffff;
-      --border-color: #444466;
-      --header-bg: #1f8037;
-    }
-    body { font-family: Arial, sans-serif; padding: 20px; background: var(--bg-color); color: var(--text-color); transition: background 0.3s; }
-    .card { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
-    input, button, select { padding: 8px; margin: 2px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-color); }
-    input.tbl-input { width: 100px; font-size: 13px; }
-    button { background: #28a745; color: white; border: none; cursor: pointer; }
-    button.btn-save { background: #007bff; }
-    button.btn-pause { background: #ffc107; color: #000; }
-    button.btn-delete { background: #dc3545; }
-    button.btn-approve { background: #28a745; font-weight: bold; padding: 6px 12px; }
-    button.btn-action { background: #6c757d; color: white; padding: 8px 12px; margin-left: 5px; }
-    .header-actions { float: right; display: flex; align-items: center; }
-    .settings-icon { font-size: 20px; cursor: pointer; margin-right: 15px; }
-    table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 8px; overflow: hidden; }
-    th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 13px; }
-    th { background: var(--header-bg); color: white; }
-    .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; }
-    .Active { background: #d4edda; color: #155724; }
-    .Paused { background: #fff3cd; color: #856404; }
-    .Expired { background: #f8d7da; color: #721c24; }
-    .Pending { background: #ffeba2; color: #856404; }
-
-    /* Modal Overlay & Card */
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
-    .modal-card { background: var(--card-bg); width: 450px; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-height: 85vh; overflow-y: auto; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px; }
-    .close-btn { cursor: pointer; font-size: 20px; font-weight: bold; }
-    .section-title { font-size: 16px; font-weight: bold; margin-top: 15px; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
+    body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; color: #333; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .header { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .header h2 { margin: 0; color: #007bff; }
+    .logout-btn { background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    
+    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 25px; }
+    .card h3 { margin-top: 0; border-bottom: 2px solid #f4f6f9; padding-bottom: 10px; color: #333; }
+    
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th { background: #007bff; color: white; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    
+    .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; display: inline-block; }
+    .badge-active { background: #28a745; color: white; }
+    .badge-paused { background: #ffc107; color: black; }
+    .badge-expired { background: #6c757d; color: white; }
+    .badge-pending { background: #fd7e14; color: white; }
+    
+    .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; margin-right: 4px; }
+    .btn-approve { background: #28a745; color: white; }
+    .btn-pause { background: #ffc107; color: black; }
+    .btn-delete { background: #dc3545; color: white; }
+    .btn-block { background: #343a40; color: white; }
+    
+    .form-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    .form-group input, .form-group select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; flex: 1; min-width: 140px; }
+    .form-group button { background: #007bff; color: white; border: none; border-radius: 4px; padding: 8px 16px; font-weight: bold; cursor: pointer; }
   </style>
 </head>
 <body>
 
-  <div style="overflow: hidden; margin-bottom: 15px;">
-    <h2 style="float: left; margin: 0;">Roggers Wi-Fi Management Dashboard</h2>
-    <div class="header-actions">
-      <span class="settings-icon" onclick="openSettings()" title="Settings">⚙️</span>
-      <button class="btn-action" onclick="logout()">Logout</button>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h2>Wi-Fi Admin Control Center</h2>
+      <button class="logout-btn" onclick="logout()">Logout</button>
     </div>
-  </div>
 
-  <!-- Pending Approvals Section -->
-  <div class="card" style="border-left: 5px solid #ffc107;">
-    <h3>⏳ Pending Approvals (<span id="pending-count">0</span>)</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Phone</th>
-          <th>Amount (KES)</th>
-          <th>M-Pesa Code</th>
-          <th>Requested Days</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="pending-table"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h3>Manual Member Registration</h3>
-    <input type="text" id="regName" placeholder="One Name (e.g., Lawi)">
-    <input type="text" id="regPhone" placeholder="Phone Number (e.g., 0823645278)">
-    <input type="number" id="regAmount" placeholder="Amount Paid (e.g., 200)" value="200">
-    <input type="number" id="regDays" placeholder="Days (e.g., 30)" value="30">
-    <button onclick="registerUser()">Register Member</button>
-  </div>
-
-  <div class="card">
-    <h3>All Active Members</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Phone</th>
-          <th>Amount (KES)</th>
-          <th>Code</th>
-          <th>Status</th>
-          <th>Start Date</th>
-          <th>End Date</th>
-          <th>Days Left</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="user-table"></tbody>
-    </table>
-  </div>
-
-  <!-- Settings Modal -->
-  <div class="modal-overlay" id="settingsModal">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3 style="margin:0;">Settings</h3>
-        <span class="close-btn" onclick="closeSettings()">&times;</span>
+    <!-- Pending Approvals Section -->
+    <div class="card">
+      <h3>Pending Approvals</h3>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Device</th>
+              <th>MAC Address</th>
+              <th>Code</th>
+              <th>Amount</th>
+              <th>Days</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pendingTable">
+            <tr><td colspan="9">Loading pending approvals...</td></tr>
+          </tbody>
+        </table>
       </div>
+    </div>
 
-      <!-- Credentials Section -->
-      <div class="section-title">Change Admin Login</div>
-      <input type="text" id="newUsername" placeholder="New Username" style="width: 95%;">
-      <input type="password" id="newPassword" placeholder="New Password" style="width: 95%;">
-      <button onclick="updateCredentials()" style="margin-top: 5px;">Update Credentials</button>
+    <!-- Registered / Active Users Section -->
+    <div class="card">
+      <h3>Active / Approved Subscriptions</h3>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Device</th>
+              <th>MAC Address</th>
+              <th>Code</th>
+              <th>Paid</th>
+              <th>Days Left</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersTable">
+            <tr><td colspan="10">Loading approved users...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-      <!-- Reports & PDF Export -->
-      <div class="section-title">Reports & Export</div>
-      <button onclick="downloadUsersPDF()" style="background: #17a2b8; width: 100%; font-weight: bold; padding: 10px; margin-top: 5px;">
-        📄 Export Registered Members to PDF
-      </button>
+    <!-- Manual Registration -->
+    <div class="card">
+      <h3>Manual User Registration</h3>
+      <form onsubmit="handleManualRegister(event)" class="form-group">
+        <input type="text" id="regName" placeholder="Full Name" required>
+        <input type="text" id="regPhone" placeholder="Phone Number" required>
+        <input type="text" id="regDevice" placeholder="Device Name (e.g. Tecno Spark 10)">
+        <input type="text" id="regMac" placeholder="MAC Address (e.g. AA:BB:CC:DD:EE:FF)">
+        <input type="number" id="regAmount" placeholder="Amount (KES)" required>
+        <input type="number" id="regDays" placeholder="Days Access">
+        <button type="submit">Register User</button>
+      </form>
+    </div>
 
-      <!-- Theme Switcher -->
-      <div class="section-title">Portal Theme</div>
-      <select id="themeSelect" onchange="changeTheme(this.value)" style="width: 100%;">
-        <option value="light">Light Theme</option>
-        <option value="dark">Dark Theme</option>
-      </select>
+    <!-- Blacklist Section -->
+    <div class="card">
+      <h3>Manage Blacklist</h3>
+      <form onsubmit="handleBlacklist(event)" class="form-group">
+        <input type="text" id="blackPhone" placeholder="Phone Number to Block" required>
+        <input type="text" id="blackReason" placeholder="Reason (Optional)">
+        <button type="submit" style="background: #dc3545;">Block Number</button>
+      </form>
+      
+      <div style="margin-top: 15px; overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Blocked Phone</th>
+              <th>Reason</th>
+              <th>Blocked At</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="blacklistTable">
+            <tr><td colspan="4">Loading blacklist...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-      <!-- Payment Blacklist -->
-      <div class="section-title">Payment Blacklist</div>
-      <input type="text" id="blockPhone" placeholder="Phone Number" style="width: 60%;">
-      <input type="text" id="blockReason" placeholder="Reason" style="width: 30%;">
-      <button onclick="addBlacklist()" style="margin-top: 5px;">Block Number</button>
-
-      <table style="margin-top: 10px;">
-        <thead>
-          <tr>
-            <th>Phone</th>
-            <th>Reason</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="blacklist-table"></tbody>
-      </table>
+    <!-- Change Credentials -->
+    <div class="card">
+      <h3>Change Admin Credentials</h3>
+      <form onsubmit="handleChangeCredentials(event)" class="form-group">
+        <input type="text" id="newUsername" placeholder="New Username" required>
+        <input type="password" id="newPassword" placeholder="New Password" required>
+        <button type="submit">Update Login</button>
+      </form>
     </div>
   </div>
 
   <script>
-    const adminToken = localStorage.getItem('adminToken');
-
-    if (!adminToken) {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
       window.location.href = '/login';
     }
 
-    // Apply saved theme on load
-    const savedTheme = localStorage.getItem('adminTheme') || 'light';
-    if (savedTheme === 'dark') document.body.classList.add('dark-theme');
-    document.getElementById('themeSelect').value = savedTheme;
+    const headers = {
+      'Content-Type': 'application/json',
+      'x-admin-token': token
+    };
 
     function logout() {
       localStorage.removeItem('adminToken');
       window.location.href = '/login';
     }
 
-    function openSettings() {
-      document.getElementById('settingsModal').style.display = 'flex';
-      loadBlacklist();
-    }
-
-    function closeSettings() {
-      document.getElementById('settingsModal').style.display = 'none';
-    }
-
-    function changeTheme(theme) {
-      if (theme === 'dark') {
-        document.body.classList.add('dark-theme');
-      } else {
-        document.body.classList.remove('dark-theme');
-      }
-      localStorage.setItem('adminTheme', theme);
-    }
-
-    // Load Pending Approvals
-    async function loadPendingApprovals() {
+    async function loadPending() {
       try {
-        const res = await fetch('/api/admin/pending-approvals', {
-          headers: { 'x-admin-token': adminToken }
-        });
-
+        const res = await fetch('/api/admin/pending-approvals', { headers });
         if (res.status === 401) return logout();
-
-        const pendingUsers = await res.json();
-        const tbody = document.getElementById('pending-table');
-        const countBadge = document.getElementById('pending-count');
-
-        if (countBadge) countBadge.innerText = pendingUsers.length || 0;
-        tbody.innerHTML = '';
-
-        if (!Array.isArray(pendingUsers) || pendingUsers.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6">No pending approvals at the moment.</td></tr>';
-          return;
-        }
-
-        pendingUsers.forEach(u => {
-          tbody.innerHTML += `
-            <tr>
-              <td><strong>${u.user_name || 'Subscriber'}</strong></td>
-              <td>${u.phone_number}</td>
-              <td>KES ${u.amount_paid || 0}</td>
-              <td><span class="badge Pending">${u.mpesa_code}</span></td>
-              <td>${u.requested_days || 30} Days</td>
-              <td>
-                <button class="btn-approve" onclick="approveUser(${u.id})">Approve</button>
-                <button class="btn-delete" onclick="deleteUser(${u.id})">Reject</button>
-              </td>
-            </tr>
-          `;
-        });
-      } catch (err) {
-        console.error("Error loading pending approvals:", err);
-      }
-    }
-
-    // Approve Pending User
-    async function approveUser(id) {
-      if (!confirm("Approve this member and start their subscription timer?")) return;
-
-      try {
-        const res = await fetch('/api/admin/approve-user', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'x-admin-token': adminToken 
-          },
-          body: JSON.stringify({ id })
-        });
         const data = await res.json();
-
-        if (data.success) {
-          alert(data.message);
-          loadPendingApprovals();
-          loadUsers();
-        } else {
-          alert("Error: " + (data.error || data.message));
-        }
-      } catch (err) {
-        alert("Failed to approve user: " + err.message);
-      }
-    }
-
-    // Load Active Users
-    async function loadUsers() {
-      try {
-        const res = await fetch('/api/admin/users', { 
-          headers: { 'x-admin-token': adminToken } 
-        });
-
-        if (res.status === 401) {
-          alert("Session expired. Please log in again.");
-          logout();
+        
+        const tbody = document.getElementById('pendingTable');
+        if (data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="9">No pending requests.</td></tr>';
           return;
         }
 
-        const users = await res.json();
-        const tbody = document.getElementById('user-table');
-        tbody.innerHTML = '';
-
-        if (!Array.isArray(users) || users.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="9">No active members found.</td></tr>';
-          return;
-        }
-
-        users.forEach(u => {
-          const startDate = u.start_date ? new Date(u.start_date).toLocaleDateString() : 'N/A';
-          const expiryDate = u.expiry_date ? new Date(u.expiry_date).toLocaleDateString() : 'N/A';
-
-          tbody.innerHTML += `
-            <tr>
-              <td><input type="text" class="tbl-input" id="name-${u.id}" value="${u.user_name || ''}"></td>
-              <td><input type="text" class="tbl-input" id="phone-${u.id}" value="${u.phone_number || ''}"></td>
-              <td><input type="number" class="tbl-input" style="width: 65px;" id="amount-${u.id}" value="${u.amount_paid || 0}"></td>
-              <td><input type="text" class="tbl-input" style="width: 85px;" id="code-${u.id}" value="${u.mpesa_code || ''}"></td>
-              <td><span class="badge ${u.status}">${u.status}</span></td>
-              <td>${startDate}</td>
-              <td>${expiryDate}</td>
-              <td><strong>${u.days_left} Days</strong></td>
-              <td>
-                <button class="btn-save" onclick="updateUser(${u.id})">Save</button>
-                <button class="btn-pause" onclick="togglePause(${u.id})">${u.is_paused ? 'Resume' : 'Pause'}</button>
-                <button class="btn-delete" onclick="deleteUser(${u.id})">Delete</button>
-              </td>
-            </tr>
-          `;
-        });
+        tbody.innerHTML = data.map(u => `
+          <tr>
+            <td>${u.id}</td>
+            <td><strong>${u.user_name || ''}</strong></td>
+            <td>${u.phone_number || ''}</td>
+            <td>${u.device_name || 'N/A'}</td>
+            <td><code>${u.mac_address || 'N/A'}</code></td>
+            <td>${u.mpesa_code || ''}</td>
+            <td>KES ${u.amount_paid || 0}</td>
+            <td>${u.requested_days || 1} Days</td>
+            <td>
+              <button class="btn btn-approve" onclick="approveUser(${u.id})">Approve</button>
+              <button class="btn btn-delete" onclick="deleteUser(${u.id})">Reject</button>
+            </td>
+          </tr>
+        `).join('');
       } catch (err) {
         console.error(err);
       }
     }
 
-    // Download PDF Report
-    async function downloadUsersPDF() {
-      if (!adminToken) {
-        alert("Session expired. Please log in again.");
-        return;
-      }
-
+    async function loadUsers() {
       try {
-        const res = await fetch('/api/admin/users', {
-          headers: { 'x-admin-token': adminToken }
-        });
-
-        if (!res.ok) throw new Error("Failed to fetch user list.");
-        const users = await res.json();
-
-        if (!users || users.length === 0) {
-          alert("No registered members found to export.");
+        const res = await fetch('/api/admin/users', { headers });
+        if (res.status === 401) return logout();
+        const data = await res.json();
+        
+        const tbody = document.getElementById('usersTable');
+        if (data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="10">No active subscriptions found.</td></tr>';
           return;
         }
 
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
+        tbody.innerHTML = data.map(u => {
+          let badgeClass = 'badge-active';
+          if (u.status === 'Paused') badgeClass = 'badge-paused';
+          if (u.status === 'Expired') badgeClass = 'badge-expired';
 
-        doc.setFontSize(18);
-        doc.setTextColor(40);
-        doc.text('Roggers Wi-Fi - Registered Members Report', 14, 20);
-
-        doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
-        doc.text(`Total Members: ${users.length}`, 14, 34);
-
-        const tableHeaders = [['#', 'Name', 'Phone Number', 'Code', 'Amount (KES)', 'Status', 'Days Left']];
-        const tableRows = users.map((user, index) => [
-          index + 1,
-          user.user_name || 'N/A',
-          user.phone_number || 'N/A',
-          user.mpesa_code || 'N/A',
-          user.amount_paid || 0,
-          user.status || 'N/A',
-          `${user.days_left} Days`
-        ]);
-
-        doc.autoTable({
-          head: tableHeaders,
-          body: tableRows,
-          startY: 40,
-          theme: 'striped',
-          headStyles: { fillColor: [40, 167, 69] },
-          styles: { fontSize: 9, cellPadding: 3 }
-        });
-
-        doc.save(`Wi-Fi_Members_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
-
+          return `
+            <tr>
+              <td>${u.id}</td>
+              <td><strong>${u.user_name || ''}</strong></td>
+              <td>${u.phone_number || ''}</td>
+              <td>${u.device_name || 'N/A'}</td>
+              <td><code>${u.mac_address || 'N/A'}</code></td>
+              <td>${u.mpesa_code || ''}</td>
+              <td>KES ${u.amount_paid || 0}</td>
+              <td>${u.days_left} Days</td>
+              <td><span class="badge ${badgeClass}">${u.status}</span></td>
+              <td>
+                <button class="btn btn-pause" onclick="togglePause(${u.id})">${u.is_paused ? 'Resume' : 'Pause'}</button>
+                <button class="btn btn-delete" onclick="deleteUser(${u.id})">Delete</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
       } catch (err) {
-        alert("Error generating PDF: " + err.message);
+        console.error(err);
       }
-    }
-
-    async function updateCredentials() {
-      const newUsername = document.getElementById('newUsername').value;
-      const newPassword = document.getElementById('newPassword').value;
-
-      const res = await fetch('/api/admin/change-credentials', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
-        body: JSON.stringify({ newUsername, newPassword })
-      });
-      const data = await res.json();
-      alert(data.message);
     }
 
     async function loadBlacklist() {
-      const res = await fetch('/api/admin/blacklist', { headers: { 'x-admin-token': adminToken } });
-      const list = await res.json();
-      const tbody = document.getElementById('blacklist-table');
-      tbody.innerHTML = '';
+      try {
+        const res = await fetch('/api/admin/blacklist', { headers });
+        const data = await res.json();
+        
+        const tbody = document.getElementById('blacklistTable');
+        if (data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4">No blocked numbers.</td></tr>';
+          return;
+        }
 
-      if (!Array.isArray(list) || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3">No blocked numbers.</td></tr>';
-        return;
-      }
-
-      list.forEach(item => {
-        tbody.innerHTML += `
+        tbody.innerHTML = data.map(b => `
           <tr>
-            <td>${item.phone_number}</td>
-            <td>${item.reason}</td>
-            <td><button class="btn-delete" onclick="removeBlacklist('${item.phone_number}')">Unblock</button></td>
+            <td>${b.phone_number}</td>
+            <td>${b.reason || 'Blocked'}</td>
+            <td>${new Date(b.created_at).toLocaleDateString()}</td>
+            <td>
+              <button class="btn btn-delete" onclick="unblockPhone('${b.phone_number}')">Unblock</button>
+            </td>
           </tr>
-        `;
-      });
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
     }
 
-    async function addBlacklist() {
-      const phone = document.getElementById('blockPhone').value;
-      const reason = document.getElementById('blockReason').value;
-
-      if (!phone) return alert("Enter a phone number");
-
-      await fetch('/api/admin/blacklist', {
+    async function approveUser(id) {
+      if (!confirm('Approve this subscription request?')) return;
+      await fetch('/api/admin/approve-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
-        body: JSON.stringify({ phone, reason })
+        headers,
+        body: JSON.stringify({ id })
       });
-      document.getElementById('blockPhone').value = '';
-      document.getElementById('blockReason').value = '';
-      loadBlacklist();
-    }
-
-    async function removeBlacklist(phone) {
-      await fetch(`/api/admin/blacklist/${encodeURIComponent(phone)}`, {
-        method: 'DELETE',
-        headers: { 'x-admin-token': adminToken }
-      });
-      loadBlacklist();
-    }
-
-    async function updateUser(id) {
-      const user_name = document.getElementById(`name-${id}`).value;
-      const phone_number = document.getElementById(`phone-${id}`).value;
-      const amount_paid = document.getElementById(`amount-${id}`).value;
-      const mpesa_code = document.getElementById(`code-${id}`).value;
-
-      const res = await fetch('/api/admin/update-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
-        body: JSON.stringify({ id, user_name, phone_number, amount_paid, mpesa_code })
-      });
-      const data = await res.json();
-      if (data.success) { alert("Member details updated!"); loadUsers(); } 
-      else { alert("Error: " + (data.error || data.message)); }
-    }
-
-    async function registerUser() {
-      const name = document.getElementById('regName').value;
-      const phone = document.getElementById('regPhone').value;
-      const amount = document.getElementById('regAmount').value;
-      const days = document.getElementById('regDays').value;
-
-      if (!name || !phone) return alert("Please fill in both Name and Phone Number.");
-
-      const res = await fetch('/api/admin/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
-        body: JSON.stringify({ name, phone, amount, days })
-      });
-      const data = await res.json();
-      if (data.success) {
-        document.getElementById('regName').value = '';
-        document.getElementById('regPhone').value = '';
-        loadUsers();
-      } else { alert("Error: " + (data.error || data.message)); }
+      refreshAll();
     }
 
     async function togglePause(id) {
       await fetch('/api/admin/toggle-pause', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+        headers,
         body: JSON.stringify({ id })
       });
-      loadUsers();
+      refreshAll();
     }
 
     async function deleteUser(id) {
-      if (confirm("Are you sure you want to delete/reject this user?")) {
-        await fetch(`/api/admin/delete/${id}`, {
-          method: 'DELETE',
-          headers: { 'x-admin-token': adminToken }
-        });
-        loadPendingApprovals();
-        loadUsers();
-      }
+      if (!confirm('Are you sure you want to delete this record?')) return;
+      await fetch(`/api/admin/delete/${id}`, { method: 'DELETE', headers });
+      refreshAll();
     }
 
-    // Initial Load & Auto-Refresh pending approvals every 10 seconds
-    loadPendingApprovals();
-    loadUsers();
-    setInterval(loadPendingApprovals, 10000);
+    async function handleManualRegister(e) {
+      e.preventDefault();
+      const body = {
+        name: document.getElementById('regName').value,
+        phone: document.getElementById('regPhone').value,
+        device_name: document.getElementById('regDevice').value,
+        mac_address: document.getElementById('regMac').value,
+        amount: document.getElementById('regAmount').value,
+        days: document.getElementById('regDays').value
+      };
+
+      const res = await fetch('/api/admin/register', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      alert(data.message || 'Done');
+      e.target.reset();
+      refreshAll();
+    }
+
+    async function handleBlacklist(e) {
+      e.preventDefault();
+      const phone = document.getElementById('blackPhone').value;
+      const reason = document.getElementById('blackReason').value;
+
+      await fetch('/api/admin/blacklist', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ phone, reason })
+      });
+      e.target.reset();
+      loadBlacklist();
+    }
+
+    async function unblockPhone(phone) {
+      await fetch(`/api/admin/blacklist/${encodeURIComponent(phone)}`, { method: 'DELETE', headers });
+      loadBlacklist();
+    }
+
+    async function handleChangeCredentials(e) {
+      e.preventDefault();
+      const newUsername = document.getElementById('newUsername').value;
+      const newPassword = document.getElementById('newPassword').value;
+
+      const res = await fetch('/api/admin/change-credentials', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ newUsername, newPassword })
+      });
+      const data = await res.json();
+      alert(data.message);
+      e.target.reset();
+    }
+
+    function refreshAll() {
+      loadPending();
+      loadUsers();
+      loadBlacklist();
+    }
+
+    window.onload = refreshAll;
   </script>
 </body>
 </html>
