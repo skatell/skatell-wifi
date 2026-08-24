@@ -61,13 +61,12 @@ async function initDb() {
 }
 initDb();
 
-// Helper function to map amounts to package days
+// Helper function to map amounts to package days (Updated)
 function calculatePackageDays(amount) {
   const paid = parseFloat(amount) || 0;
   if (paid >= 200) return 30;
-  if (paid >= 100) return 14;
-  if (paid >= 50) return 7;
-  if (paid >= 25) return 2;
+  if (paid >= 100) return 10;
+  if (paid >= 50) return 2;
   return 1;
 }
 
