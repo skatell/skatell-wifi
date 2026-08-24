@@ -3,164 +3,381 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard</title>
+  <title>Admin Dashboard - Wi-Fi Portal</title>
+  <!-- HTML2PDF CDN for PDF Generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; color: #333; }
-    .container { max-width: 1100px; margin: 0 auto; }
-    .header { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-    .header h2 { margin: 0; color: #007bff; }
-    .logout-btn { background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-    
-    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 25px; }
-    .card h3 { margin-top: 0; border-bottom: 2px solid #f4f6f9; padding-bottom: 10px; color: #333; }
-    
+    :root {
+      --bg-color: #f4f6f9;
+      --card-bg: #ffffff;
+      --text-color: #333333;
+      --sidebar-bg: #1e293b;
+      --sidebar-text: #f8fafc;
+      --sidebar-hover: #334155;
+      --border-color: #e2e8f0;
+      --table-stripe: #f8fafc;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-color: #f8fafc;
+      --sidebar-bg: #020617;
+      --sidebar-text: #94a3b8;
+      --sidebar-hover: #1e293b;
+      --border-color: #334155;
+      --table-stripe: #0f172a;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      display: flex;
+      min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 250px;
+      background: var(--sidebar-bg);
+      color: var(--sidebar-text);
+      display: flex;
+      flex-direction: column;
+      padding: 20px 0;
+      flex-shrink: 0;
+    }
+
+    .sidebar-brand {
+      padding: 0 20px 20px 20px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #38bdf8;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .nav-menu {
+      list-style: none;
+      padding: 0;
+      margin: 20px 0;
+      flex-grow: 1;
+    }
+
+    .nav-item {
+      padding: 12px 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.2s;
+      font-size: 14px;
+    }
+
+    .nav-item:hover, .nav-item.active {
+      background: var(--sidebar-hover);
+      color: #38bdf8;
+      font-weight: bold;
+    }
+
+    .nav-badge {
+      background: #ef4444;
+      color: white;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+
+    .logout-btn {
+      margin: 20px;
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    /* Main Content Area */
+    .main-content {
+      flex: 1;
+      padding: 30px;
+      overflow-y: auto;
+    }
+
+    .view-section {
+      display: none;
+    }
+
+    .view-section.active {
+      display: block;
+    }
+
+    .card {
+      background: var(--card-bg);
+      padding: 25px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      border: 1px solid var(--border-color);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--bg-color);
+      padding-bottom: 10px;
+    }
+
+    .card-header h3 { margin: 0; }
+
+    /* Tables */
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th, td { border: 1px solid var(--border-color); padding: 12px; text-align: left; }
     th { background: #007bff; color: white; }
-    tr:nth-child(even) { background-color: #f9f9f9; }
-    
-    .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; display: inline-block; }
+    tr:nth-child(even) { background-color: var(--table-stripe); }
+
+    .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
     .badge-active { background: #28a745; color: white; }
     .badge-paused { background: #ffc107; color: black; }
     .badge-expired { background: #6c757d; color: white; }
-    .badge-pending { background: #fd7e14; color: white; }
-    
+
     .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; margin-right: 4px; }
     .btn-approve { background: #28a745; color: white; }
     .btn-pause { background: #ffc107; color: black; }
     .btn-delete { background: #dc3545; color: white; }
-    .btn-block { background: #343a40; color: white; }
-    
-    .form-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-    .form-group input, .form-group select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; flex: 1; min-width: 140px; }
-    .form-group button { background: #007bff; color: white; border: none; border-radius: 4px; padding: 8px 16px; font-weight: bold; cursor: pointer; }
+    .btn-pdf { background: #10b981; color: white; padding: 8px 16px; font-size: 14px; }
+
+    /* Forms */
+    .form-group { display: flex; flex-direction: column; gap: 12px; max-width: 500px; }
+    .form-group input, .form-group select { padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--card-bg); color: var(--text-color); }
+    .form-group button { background: #007bff; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; width: fit-content; }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <!-- Header -->
-    <div class="header">
-      <h2>Wi-Fi Admin Control Center</h2>
-      <button class="logout-btn" onclick="logout()">Logout</button>
-    </div>
+  <!-- Left Sidebar Navigation -->
+  <div class="sidebar">
+    <div class="sidebar-brand">Wi-Fi Control Panel</div>
+    <ul class="nav-menu">
+      <li class="nav-item active" onclick="switchTab('dashboard', this)">
+        <span>Active Members</span>
+      </li>
+      <li class="nav-item" onclick="switchTab('pending', this)">
+        <span>Pending Approvals</span>
+        <span class="nav-badge" id="pendingCount">0</span>
+      </li>
+      <li class="nav-item" onclick="switchTab('manual', this)">
+        <span>Manual Registration</span>
+      </li>
+      <li class="nav-item" onclick="switchTab('blacklist', this)">
+        <span>Blacklist</span>
+      </li>
+      <li class="nav-item" onclick="switchTab('settings', this)">
+        <span>Settings Menu</span>
+      </li>
+    </ul>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
 
-    <!-- Pending Approvals Section -->
-    <div class="card">
-      <h3>Pending Approvals</h3>
-      <div style="overflow-x: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Device</th>
-              <th>MAC Address</th>
-              <th>Code</th>
-              <th>Amount</th>
-              <th>Days</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="pendingTable">
-            <tr><td colspan="9">Loading pending approvals...</td></tr>
-          </tbody>
-        </table>
+  <!-- Main View Container -->
+  <div class="main-content">
+    
+    <!-- Active Members Section (Main Dashboard) -->
+    <div id="dashboard" class="view-section active">
+      <div class="card">
+        <div class="card-header">
+          <h3>Active Subscriptions</h3>
+          <button class="btn btn-pdf" onclick="exportPDF()">Export PDF List</button>
+        </div>
+        <div style="overflow-x: auto;" id="pdfContent">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Device</th>
+                <th>MAC Address</th>
+                <th>Code</th>
+                <th>Paid</th>
+                <th>Days Left</th>
+                <th>Status</th>
+                <th class="no-print">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersTable">
+              <tr><td colspan="10">Loading active users...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <!-- Registered / Active Users Section -->
-    <div class="card">
-      <h3>Active / Approved Subscriptions</h3>
-      <div style="overflow-x: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Device</th>
-              <th>MAC Address</th>
-              <th>Code</th>
-              <th>Paid</th>
-              <th>Days Left</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="usersTable">
-            <tr><td colspan="10">Loading approved users...</td></tr>
-          </tbody>
-        </table>
+    <!-- Pending Approvals View -->
+    <div id="pending" class="view-section">
+      <div class="card">
+        <div class="card-header">
+          <h3>Pending Approvals</h3>
+        </div>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Device</th>
+                <th>MAC Address</th>
+                <th>Code</th>
+                <th>Amount</th>
+                <th>Requested Days</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pendingTable">
+              <tr><td colspan="9">Loading pending requests...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <!-- Manual Registration -->
-    <div class="card">
-      <h3>Manual User Registration</h3>
-      <form onsubmit="handleManualRegister(event)" class="form-group">
-        <input type="text" id="regName" placeholder="Full Name" required>
-        <input type="text" id="regPhone" placeholder="Phone Number" required>
-        <input type="text" id="regDevice" placeholder="Device Name (e.g. Tecno Spark 10)">
-        <input type="text" id="regMac" placeholder="MAC Address (e.g. AA:BB:CC:DD:EE:FF)">
-        <input type="number" id="regAmount" placeholder="Amount (KES)" required>
-        <input type="number" id="regDays" placeholder="Days Access">
-        <button type="submit">Register User</button>
-      </form>
-    </div>
-
-    <!-- Blacklist Section -->
-    <div class="card">
-      <h3>Manage Blacklist</h3>
-      <form onsubmit="handleBlacklist(event)" class="form-group">
-        <input type="text" id="blackPhone" placeholder="Phone Number to Block" required>
-        <input type="text" id="blackReason" placeholder="Reason (Optional)">
-        <button type="submit" style="background: #dc3545;">Block Number</button>
-      </form>
-      
-      <div style="margin-top: 15px; overflow-x: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>Blocked Phone</th>
-              <th>Reason</th>
-              <th>Blocked At</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="blacklistTable">
-            <tr><td colspan="4">Loading blacklist...</td></tr>
-          </tbody>
-        </table>
+    <!-- Manual Registration View -->
+    <div id="manual" class="view-section">
+      <div class="card">
+        <div class="card-header">
+          <h3>Manual User Registration</h3>
+        </div>
+        <form onsubmit="handleManualRegister(event)" class="form-group">
+          <input type="text" id="regName" placeholder="Full Name" required>
+          <input type="text" id="regPhone" placeholder="Phone Number" required>
+          <input type="text" id="regDevice" placeholder="Device Name (e.g. Tecno Spark 10)">
+          <input type="text" id="regMac" placeholder="MAC Address (e.g. AA:BB:CC:DD:EE:FF)">
+          <input type="number" id="regAmount" placeholder="Amount (KES)" required>
+          <input type="number" id="regDays" placeholder="Days Access">
+          <button type="submit">Register User</button>
+        </form>
       </div>
     </div>
 
-    <!-- Change Credentials -->
-    <div class="card">
-      <h3>Change Admin Credentials</h3>
-      <form onsubmit="handleChangeCredentials(event)" class="form-group">
-        <input type="text" id="newUsername" placeholder="New Username" required>
-        <input type="password" id="newPassword" placeholder="New Password" required>
-        <button type="submit">Update Login</button>
-      </form>
+    <!-- Blacklist View -->
+    <div id="blacklist" class="view-section">
+      <div class="card">
+        <div class="card-header">
+          <h3>Manage Blacklist</h3>
+        </div>
+        <form onsubmit="handleBlacklist(event)" class="form-group" style="margin-bottom: 20px;">
+          <input type="text" id="blackPhone" placeholder="Phone Number to Block" required>
+          <input type="text" id="blackReason" placeholder="Reason (Optional)">
+          <button type="submit" style="background: #dc3545;">Block Number</button>
+        </form>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Blocked Phone</th>
+                <th>Reason</th>
+                <th>Blocked At</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="blacklistTable">
+              <tr><td colspan="4">Loading blacklist...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
+
+    <!-- Settings Menu View -->
+    <div id="settings" class="view-section">
+      <div class="card">
+        <div class="card-header">
+          <h3>Appearance & Theme</h3>
+        </div>
+        <div class="form-group">
+          <label><strong>Dashboard Theme:</strong></label>
+          <select id="themeSelect" onchange="changeTheme(this.value)">
+            <option value="light">Light Theme</option>
+            <option value="dark">Dark Theme</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Change Admin Credentials</h3>
+        </div>
+        <form onsubmit="handleChangeCredentials(event)" class="form-group">
+          <input type="text" id="newUsername" placeholder="New Username" required>
+          <input type="password" id="newPassword" placeholder="New Password" required>
+          <button type="submit">Update Credentials</button>
+        </form>
+      </div>
+    </div>
+
   </div>
 
   <script>
     const token = localStorage.getItem('adminToken');
-    if (!token) {
-      window.location.href = '/login';
-    }
+    if (!token) window.location.href = '/login';
 
     const headers = {
       'Content-Type': 'application/json',
       'x-admin-token': token
     };
 
+    // Navigation Switcher
+    function switchTab(tabId, element) {
+      document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById(tabId).classList.add('active');
+      element.classList.add('active');
+    }
+
+    // Theme Switcher Logic
+    function changeTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('adminTheme', theme);
+    }
+
+    // Load saved theme
+    const savedTheme = localStorage.getItem('adminTheme') || 'light';
+    changeTheme(savedTheme);
+    document.getElementById('themeSelect').value = savedTheme;
+
     function logout() {
       localStorage.removeItem('adminToken');
       window.location.href = '/login';
+    }
+
+    // Export PDF Feature
+    function exportPDF() {
+      const element = document.getElementById('pdfContent');
+      
+      // Temporary hide action buttons for print out
+      const style = document.createElement('style');
+      style.id = 'hide-actions';
+      style.innerHTML = '.no-print, tbody button { display: none !important; }';
+      document.head.appendChild(style);
+
+      const opt = {
+        margin:       0.5,
+        filename:     'active_members_report.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+      };
+
+      html2pdf().set(opt).from(element).save().then(() => {
+        document.getElementById('hide-actions').remove();
+      });
     }
 
     async function loadPending() {
@@ -169,6 +386,8 @@
         if (res.status === 401) return logout();
         const data = await res.json();
         
+        document.getElementById('pendingCount').innerText = data.length;
+
         const tbody = document.getElementById('pendingTable');
         if (data.length === 0) {
           tbody.innerHTML = '<tr><td colspan="9">No pending requests.</td></tr>';
@@ -191,9 +410,7 @@
             </td>
           </tr>
         `).join('');
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (err) { console.error(err); }
     }
 
     async function loadUsers() {
@@ -204,7 +421,7 @@
         
         const tbody = document.getElementById('usersTable');
         if (data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="10">No active subscriptions found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="10">No active subscriptions.</td></tr>';
           return;
         }
 
@@ -224,29 +441,25 @@
               <td>KES ${u.amount_paid || 0}</td>
               <td>${u.days_left} Days</td>
               <td><span class="badge ${badgeClass}">${u.status}</span></td>
-              <td>
+              <td class="no-print">
                 <button class="btn btn-pause" onclick="togglePause(${u.id})">${u.is_paused ? 'Resume' : 'Pause'}</button>
                 <button class="btn btn-delete" onclick="deleteUser(${u.id})">Delete</button>
               </td>
             </tr>
           `;
         }).join('');
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (err) { console.error(err); }
     }
 
     async function loadBlacklist() {
       try {
         const res = await fetch('/api/admin/blacklist', { headers });
         const data = await res.json();
-        
         const tbody = document.getElementById('blacklistTable');
         if (data.length === 0) {
           tbody.innerHTML = '<tr><td colspan="4">No blocked numbers.</td></tr>';
           return;
         }
-
         tbody.innerHTML = data.map(b => `
           <tr>
             <td>${b.phone_number}</td>
@@ -257,27 +470,17 @@
             </td>
           </tr>
         `).join('');
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (err) { console.error(err); }
     }
 
     async function approveUser(id) {
-      if (!confirm('Approve this subscription request?')) return;
-      await fetch('/api/admin/approve-user', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ id })
-      });
+      if (!confirm('Approve subscription request?')) return;
+      await fetch('/api/admin/approve-user', { method: 'POST', headers, body: JSON.stringify({ id }) });
       refreshAll();
     }
 
     async function togglePause(id) {
-      await fetch('/api/admin/toggle-pause', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ id })
-      });
+      await fetch('/api/admin/toggle-pause', { method: 'POST', headers, body: JSON.stringify({ id }) });
       refreshAll();
     }
 
@@ -297,12 +500,7 @@
         amount: document.getElementById('regAmount').value,
         days: document.getElementById('regDays').value
       };
-
-      const res = await fetch('/api/admin/register', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body)
-      });
+      const res = await fetch('/api/admin/register', { method: 'POST', headers, body: JSON.stringify(body) });
       const data = await res.json();
       alert(data.message || 'Done');
       e.target.reset();
@@ -313,12 +511,7 @@
       e.preventDefault();
       const phone = document.getElementById('blackPhone').value;
       const reason = document.getElementById('blackReason').value;
-
-      await fetch('/api/admin/blacklist', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ phone, reason })
-      });
+      await fetch('/api/admin/blacklist', { method: 'POST', headers, body: JSON.stringify({ phone, reason }) });
       e.target.reset();
       loadBlacklist();
     }
@@ -332,7 +525,6 @@
       e.preventDefault();
       const newUsername = document.getElementById('newUsername').value;
       const newPassword = document.getElementById('newPassword').value;
-
       const res = await fetch('/api/admin/change-credentials', {
         method: 'POST',
         headers,
