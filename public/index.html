@@ -7,19 +7,36 @@
   <style>
     body { font-family: Arial, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
     .card { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; }
+    .admin-info { background: #e9ecef; border-left: 4px solid #007bff; padding: 12px; margin-bottom: 20px; text-align: left; border-radius: 4px; }
+    .admin-info p { margin: 4px 0; font-size: 14px; color: #333; }
     input { width: 92%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; box-sizing: border-box; }
     button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     button:hover { background: #0056b3; }
     .msg { margin-top: 12px; font-weight: bold; font-size: 14px; }
     .error { color: #dc3545; }
-    .portal-link { display: inline-block; margin-top: 20px; color: #007bff; text-decoration: none; font-weight: bold; font-size: 14px; }
+    .portal-link { display: inline-block; margin-top: 15px; color: #007bff; text-decoration: none; font-weight: bold; font-size: 14px; }
     .portal-link:hover { text-decoration: underline; }
+    
+    /* Support Box Styling */
+    .support-box { margin-top: 25px; padding-top: 15px; border-top: 1px solid #eee; font-size: 13px; color: #555; }
+    .contact-btn { display: inline-block; margin: 5px 4px; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 13px; }
+    .wa-btn { background: #25D366; color: white; }
+    .call-btn { background: #007bff; color: white; }
   </style>
 </head>
 <body>
 
   <div class="card">
     <h2>Wi-Fi Access Payment</h2>
+    
+    <!-- Admin Payment Information Display -->
+    <div class="admin-info">
+      <p><strong>Payment Instructions:</strong></p>
+      <p>Send M-Pesa Payment to:</p>
+      <p><strong>Name:</strong> Roggers</p>
+      <p><strong>Phone / Till:</strong> 0115982405</p>
+    </div>
+
     <p style="color: #666; font-size: 14px;">Enter your details and M-Pesa transaction code to activate your internet.</p>
 
     <form id="payForm" onsubmit="return false;">
@@ -35,6 +52,18 @@
 
     <div>
       <a href="/user" class="portal-link">Already have an active plan? Click here to access your portal</a>
+    </div>
+
+    <!-- Contact Administrator Section -->
+    <div class="support-box">
+      <p style="margin-bottom: 8px;"><strong>Need help or having trouble?</strong></p>
+      <p style="margin: 4px 0;">Contact administrator <strong>Roggers</strong>:</p>
+      <p style="font-weight: bold; color: #333; margin: 6px 0;">0115 982 405</p>
+      
+      <div>
+        <a href="https://wa.me/254115982405" target="_blank" class="contact-btn wa-btn">WhatsApp</a>
+        <a href="tel:0115982405" class="contact-btn call-btn">Call</a>
+      </div>
     </div>
   </div>
 
@@ -72,7 +101,6 @@
           statusMsg.style.color = '#28a745';
           statusMsg.innerText = 'Payment verified! Redirecting to portal...';
           
-          // Direct browser navigation after short delay
           setTimeout(() => {
             window.location.assign(`/user?name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`);
           }, 800);
