@@ -54,14 +54,6 @@ async function initDb() {
       );
     `);
     
-    const checkIsp = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_expiry_date'");
-    if (checkIsp.rowCount === 0) {
-      await pool.query(`
-        INSERT INTO system_settings (key, value)
-        VALUES ('isp_expiry_date', (CURRENT_TIMESTAMP + INTERVAL '30 days')::text);
-      `);
-    }
-
     const checkAutoPause = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_auto_paused'");
     if (checkAutoPause.rowCount === 0) {
       await pool.query(`
@@ -70,17 +62,18 @@ async function initDb() {
       `);
     }
 
-    // 4. ISP Settings Table (For direct days tracking)
+    // 4. ISP Settings Table (Tracks days left and last update time for automatic decrement)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS isp_settings (
         id INT PRIMARY KEY DEFAULT 1,
-        days_left INT DEFAULT 30
+        days_left INT DEFAULT 30,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
     await pool.query(`
-      INSERT INTO isp_settings (id, days_left)
-      VALUES (1, 30)
+      INSERT INTO isp_settings (id, days_left, last_updated)
+      VALUES (1, 30, CURRENT_TIMESTAMP)
       ON CONFLICT (id) DO NOTHING;
     `);
 
@@ -114,10 +107,18 @@ const requireAuthAPI = (req, res, next) => {
   return res.status(401).json({ success: false, message: 'Unauthorized session' });
 };
 
-// --- ISP System Endpoints ---
+// --- ISP System Endpoints (With Automatic Calendar Day Decrement) ---
 
 app.get('/api/isp-status', async (req, res) => {
   try {
+    // Automatically reduce days_left based on elapsed calendar days since last checked/updated
+    await pool.query(`
+      UPDATE isp_settings 
+      SET days_left = GREATEST(0, days_left - (CURRENT_DATE - last_updated::date)),
+          last_updated = CURRENT_TIMESTAMP
+      WHERE id = 1 AND CURRENT_DATE > last_updated::date;
+    `);
+
     const result = await pool.query("SELECT days_left FROM isp_settings WHERE id = 1");
     if (result.rowCount === 0) {
       return res.json({ days_left: 0, is_active: false });
@@ -141,7 +142,7 @@ app.post('/api/admin/update-isp-days', requireAuthAPI, async (req, res) => {
     const autoPauseRes = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_auto_paused'");
     const isAutoPaused = autoPauseRes.rowCount > 0 && autoPauseRes.rows[0].value === 'true';
 
-    await pool.query(`UPDATE isp_settings SET days_left = $1 WHERE id = 1;`, [parsedDays]);
+    await pool.query(`UPDATE isp_settings SET days_left = $1, last_updated = CURRENT_TIMESTAMP WHERE id = 1;`, [parsedDays]);
 
     if (parsedDays === 0) {
       await pool.query(`
@@ -175,7 +176,7 @@ app.post('/api/admin/refill-isp', requireAuthAPI, async (req, res) => {
     const autoPauseRes = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_auto_paused'");
     const isAutoPaused = autoPauseRes.rowCount > 0 && autoPauseRes.rows[0].value === 'true';
 
-    await pool.query(`UPDATE isp_settings SET days_left = 30 WHERE id = 1;`);
+    await pool.query(`UPDATE isp_settings SET days_left = 30, last_updated = CURRENT_TIMESTAMP WHERE id = 1;`);
 
     if (isAutoPaused) {
       await pool.query(`
@@ -259,7 +260,7 @@ app.post('/api/user/login', async (req, res) => {
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 0
         WHEN is_paused THEN CEIL(remaining_seconds / 86400.0)
-        ELSE GREATEST(0, CEIL(EXTRACT(EPOCH FROM (expiry_date - CURRENT_TIMESTAMP)) / 86400.0))
+        ELSE GREATEST(0, (expiry_date::date - CURRENT_DATE))
       END AS days_left
       FROM paid_users 
       WHERE phone_number = $1 AND LOWER(user_name) = LOWER($2);
@@ -362,7 +363,7 @@ app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 0
         WHEN is_paused THEN CEIL(remaining_seconds / 86400.0)
-        ELSE GREATEST(0, CEIL(EXTRACT(EPOCH FROM (expiry_date - CURRENT_TIMESTAMP)) / 86400.0))
+        ELSE GREATEST(0, (expiry_date::date - CURRENT_DATE))
       END AS days_left
       FROM paid_users 
       WHERE is_approved = 1
