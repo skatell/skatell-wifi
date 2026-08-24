@@ -107,7 +107,7 @@ app.post('/api/user/login', async (req, res) => {
   }
 });
 
-// Public Payment Verification / Submission Endpoint (MODIFIED FOR PENDING APPROVAL)
+// Public Payment Verification / Submission Endpoint (FIXED FOR PENDING APPROVAL)
 app.post('/api/verify-payment', async (req, res) => {
   try {
     let { name, phone, mpesaCode, amount } = req.body;
@@ -134,7 +134,7 @@ app.post('/api/verify-payment', async (req, res) => {
     const checkCode = await pool.query('SELECT * FROM paid_users WHERE mpesa_code = $1', [mpesaCode]);
     if (checkCode.rowCount > 0) return res.status(400).json({ success: false, message: 'M-Pesa code already used.' });
 
-    // UPSERT Query: Saves user as 'Pending' with NULL start/expiry dates
+    // UPSERT Query: Fixed Postgres interval evaluation on conflict updates
     const queryText = `
       INSERT INTO paid_users (user_name, phone_number, amount_paid, mpesa_code, status, is_approved, requested_days, start_date, expiry_date, is_paused, remaining_seconds)
       VALUES ($1, $2, $3, $4, 'Pending', 0, $5, NULL, NULL, false, 0)
@@ -143,7 +143,7 @@ app.post('/api/verify-payment', async (req, res) => {
         user_name = EXCLUDED.user_name,
         mpesa_code = EXCLUDED.mpesa_code,
         amount_paid = EXCLUDED.amount_paid,
-        requested_days = $5,
+        requested_days = EXCLUDED.requested_days,
         status = 'Pending',
         is_approved = 0,
         is_paused = false,
