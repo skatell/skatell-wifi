@@ -13,6 +13,16 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// Helper function to map amounts to package days
+function calculatePackageDays(amount) {
+  const paid = parseFloat(amount) || 0;
+  if (paid >= 200) return 30;
+  if (paid >= 100) return 14;
+  if (paid >= 50) return 7;
+  if (paid >= 25) return 2;
+  return 1;
+}
+
 // Admin Credentials
 let ADMIN_USER = process.env.ADMIN_USER || 'roggers';
 let ADMIN_PASS = process.env.ADMIN_PASS || '8422';
@@ -112,7 +122,7 @@ app.post('/api/verify-payment', async (req, res) => {
   try {
     let { name, phone, mpesaCode, amount } = req.body;
     if (!name || !phone || !mpesaCode || !amount) {
-      return res.status(400).json({ success: false, message: 'Provide name, phone number, transaction code, and amount.' });
+      return res.status(400).json({ success: false, message: 'Provide name, phone number, transaction code, and package.' });
     }
 
     name = String(name).trim();
@@ -126,9 +136,10 @@ app.post('/api/verify-payment', async (req, res) => {
       return res.status(403).json({ success: false, message: 'Your phone number is blocked from payments. Contact Admin.' });
     }
 
-    if (paidAmount <= 0) return res.status(400).json({ success: false, message: 'Please enter a valid amount.' });
+    if (paidAmount <= 0) return res.status(400).json({ success: false, message: 'Please select a valid package.' });
 
-    const calculatedDays = Math.max(1, Math.round((paidAmount / 200) * 30));
+    // Use exact package days calculation
+    const calculatedDays = calculatePackageDays(paidAmount);
 
     // Check if M-Pesa Code has already been used
     const checkCode = await pool.query('SELECT * FROM paid_users WHERE mpesa_code = $1', [mpesaCode]);
@@ -207,7 +218,7 @@ app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
     const userRes = await pool.query('SELECT requested_days, amount_paid FROM paid_users WHERE id = $1', [id]);
     if (userRes.rowCount === 0) return res.status(404).json({ success: false, message: 'User not found' });
 
-    const days = userRes.rows[0].requested_days || Math.max(1, Math.round(((userRes.rows[0].amount_paid || 200) / 200) * 30));
+    const days = userRes.rows[0].requested_days || calculatePackageDays(userRes.rows[0].amount_paid);
 
     const updateQuery = `
       UPDATE paid_users 
@@ -228,7 +239,7 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
   try {
     const { id, user_name, phone_number, mpesa_code, amount_paid } = req.body;
     const paidAmount = parseFloat(amount_paid) || 0;
-    const calculatedDays = Math.max(1, Math.round((paidAmount / 200) * 30));
+    const calculatedDays = calculatePackageDays(paidAmount);
 
     const queryText = `
       UPDATE paid_users 
@@ -243,12 +254,12 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
   }
 });
 
-// FIXED MANUAL REGISTER ENDPOINT
+// Manual Registration Endpoint
 app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
   try {
     const { phone, name, amount, days } = req.body;
     const amountNum = parseFloat(amount) || 200;
-    const daysNum = days ? parseInt(days, 10) : Math.max(1, Math.round((amountNum / 200) * 30));
+    const daysNum = days ? parseInt(days, 10) : calculatePackageDays(amountNum);
 
     const queryText = `
       INSERT INTO paid_users (phone_number, user_name, amount_paid, mpesa_code, status, is_approved, requested_days, start_date, expiry_date, is_paused, remaining_seconds)
