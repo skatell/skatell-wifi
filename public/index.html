@@ -41,6 +41,10 @@
       <input type="text" id="name" placeholder="Name (e.g. Lawi)" oninput="updateGeneratedCode()">
       <input type="text" id="phone" placeholder="Phone Number (e.g. 0712345678)">
       
+      <!-- Device Name & MAC Address Fields -->
+      <input type="text" id="deviceName" placeholder="Device Name (e.g. Tecno Spark 10, HP Laptop)">
+      <input type="text" id="macAddress" placeholder="Wi-Fi MAC Address (e.g. AA:BB:CC:DD:EE:FF)">
+
       <!-- Auto-Generated Code Field -->
       <input type="text" id="mpesaCode" placeholder="Auto-Generated Code" readonly>
       
@@ -111,6 +115,8 @@
     async function submitPayment() {
       const name = document.getElementById('name').value.trim();
       const phone = document.getElementById('phone').value.trim();
+      const deviceName = document.getElementById('deviceName').value.trim();
+      const macAddress = document.getElementById('macAddress').value.trim();
       const mpesaCode = document.getElementById('mpesaCode').value.trim();
       const amount = document.getElementById('amount').value;
       const statusMsg = document.getElementById('statusMsg');
@@ -119,9 +125,9 @@
       statusMsg.className = 'msg';
       statusMsg.innerText = '';
 
-      if (!name || !phone || !mpesaCode || !amount) {
+      if (!name || !phone || !deviceName || !macAddress || !mpesaCode || !amount) {
         statusMsg.className = 'msg error';
-        statusMsg.innerText = 'Please fill in all fields and select a package.';
+        statusMsg.innerText = 'Please fill in all fields including Device Name and MAC Address.';
         return;
       }
 
@@ -132,7 +138,7 @@
         const res = await fetch('/api/verify-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone, mpesaCode, amount })
+          body: JSON.stringify({ name, phone, deviceName, macAddress, mpesaCode, amount })
         });
 
         const data = await res.json();
