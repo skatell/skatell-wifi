@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Roggers Wi-Fi Admin</title>
 
-  <!-- Step 1: PDF Generation Libraries -->
+  <!-- PDF Generation Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
@@ -32,6 +32,7 @@
     button.btn-save { background: #007bff; }
     button.btn-pause { background: #ffc107; color: #000; }
     button.btn-delete { background: #dc3545; }
+    button.btn-approve { background: #28a745; font-weight: bold; padding: 6px 12px; }
     button.btn-action { background: #6c757d; color: white; padding: 8px 12px; margin-left: 5px; }
     .header-actions { float: right; display: flex; align-items: center; }
     .settings-icon { font-size: 20px; cursor: pointer; margin-right: 15px; }
@@ -42,6 +43,7 @@
     .Active { background: #d4edda; color: #155724; }
     .Paused { background: #fff3cd; color: #856404; }
     .Expired { background: #f8d7da; color: #721c24; }
+    .Pending { background: #ffeba2; color: #856404; }
 
     /* Modal Overlay & Card */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
@@ -61,6 +63,24 @@
     </div>
   </div>
 
+  <!-- Pending Approvals Section -->
+  <div class="card" style="border-left: 5px solid #ffc107;">
+    <h3>⏳ Pending Approvals (<span id="pending-count">0</span>)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Amount (KES)</th>
+          <th>M-Pesa Code</th>
+          <th>Requested Days</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="pending-table"></tbody>
+    </table>
+  </div>
+
   <div class="card">
     <h3>Manual Member Registration</h3>
     <input type="text" id="regName" placeholder="One Name (e.g., Lawi)">
@@ -71,7 +91,7 @@
   </div>
 
   <div class="card">
-    <h3>All Registered Members</h3>
+    <h3>All Active Members</h3>
     <table>
       <thead>
         <tr>
@@ -104,7 +124,7 @@
       <input type="password" id="newPassword" placeholder="New Password" style="width: 95%;">
       <button onclick="updateCredentials()" style="margin-top: 5px;">Update Credentials</button>
 
-      <!-- Step 2: Reports & PDF Export -->
+      <!-- Reports & PDF Export -->
       <div class="section-title">Reports & Export</div>
       <button onclick="downloadUsersPDF()" style="background: #17a2b8; width: 100%; font-weight: bold; padding: 10px; margin-top: 5px;">
         📄 Export Registered Members to PDF
@@ -171,6 +191,75 @@
       localStorage.setItem('adminTheme', theme);
     }
 
+    // Load Pending Approvals
+    async function loadPendingApprovals() {
+      try {
+        const res = await fetch('/api/admin/pending-approvals', {
+          headers: { 'x-admin-token': adminToken }
+        });
+
+        if (res.status === 401) return logout();
+
+        const pendingUsers = await res.json();
+        const tbody = document.getElementById('pending-table');
+        const countBadge = document.getElementById('pending-count');
+
+        if (countBadge) countBadge.innerText = pendingUsers.length || 0;
+        tbody.innerHTML = '';
+
+        if (!Array.isArray(pendingUsers) || pendingUsers.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6">No pending approvals at the moment.</td></tr>';
+          return;
+        }
+
+        pendingUsers.forEach(u => {
+          tbody.innerHTML += `
+            <tr>
+              <td><strong>${u.user_name || 'Subscriber'}</strong></td>
+              <td>${u.phone_number}</td>
+              <td>KES ${u.amount_paid || 0}</td>
+              <td><span class="badge Pending">${u.mpesa_code}</span></td>
+              <td>${u.requested_days || 30} Days</td>
+              <td>
+                <button class="btn-approve" onclick="approveUser(${u.id})">Approve</button>
+                <button class="btn-delete" onclick="deleteUser(${u.id})">Reject</button>
+              </td>
+            </tr>
+          `;
+        });
+      } catch (err) {
+        console.error("Error loading pending approvals:", err);
+      }
+    }
+
+    // Approve Pending User
+    async function approveUser(id) {
+      if (!confirm("Approve this member and start their subscription timer?")) return;
+
+      try {
+        const res = await fetch('/api/admin/approve-user', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-admin-token': adminToken 
+          },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert(data.message);
+          loadPendingApprovals();
+          loadUsers();
+        } else {
+          alert("Error: " + (data.error || data.message));
+        }
+      } catch (err) {
+        alert("Failed to approve user: " + err.message);
+      }
+    }
+
+    // Load Active Users
     async function loadUsers() {
       try {
         const res = await fetch('/api/admin/users', { 
@@ -188,11 +277,14 @@
         tbody.innerHTML = '';
 
         if (!Array.isArray(users) || users.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="9">No registered members found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="9">No active members found.</td></tr>';
           return;
         }
 
         users.forEach(u => {
+          const startDate = u.start_date ? new Date(u.start_date).toLocaleDateString() : 'N/A';
+          const expiryDate = u.expiry_date ? new Date(u.expiry_date).toLocaleDateString() : 'N/A';
+
           tbody.innerHTML += `
             <tr>
               <td><input type="text" class="tbl-input" id="name-${u.id}" value="${u.user_name || ''}"></td>
@@ -200,8 +292,8 @@
               <td><input type="number" class="tbl-input" style="width: 65px;" id="amount-${u.id}" value="${u.amount_paid || 0}"></td>
               <td><input type="text" class="tbl-input" style="width: 85px;" id="code-${u.id}" value="${u.mpesa_code || ''}"></td>
               <td><span class="badge ${u.status}">${u.status}</span></td>
-              <td>${new Date(u.start_date).toLocaleDateString()}</td>
-              <td>${new Date(u.expiry_date).toLocaleDateString()}</td>
+              <td>${startDate}</td>
+              <td>${expiryDate}</td>
               <td><strong>${u.days_left} Days</strong></td>
               <td>
                 <button class="btn-save" onclick="updateUser(${u.id})">Save</button>
@@ -216,7 +308,7 @@
       }
     }
 
-    // Step 3: Download Registered Members as PDF
+    // Download PDF Report
     async function downloadUsersPDF() {
       if (!adminToken) {
         alert("Session expired. Please log in again.");
@@ -239,7 +331,6 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
 
-        // Document Header
         doc.setFontSize(18);
         doc.setTextColor(40);
         doc.text('Roggers Wi-Fi - Registered Members Report', 14, 20);
@@ -249,7 +340,6 @@
         doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
         doc.text(`Total Members: ${users.length}`, 14, 34);
 
-        // Table Data Formatting
         const tableHeaders = [['#', 'Name', 'Phone Number', 'Code', 'Amount (KES)', 'Status', 'Days Left']];
         const tableRows = users.map((user, index) => [
           index + 1,
@@ -261,7 +351,6 @@
           `${user.days_left} Days`
         ]);
 
-        // Build Table using jsPDF AutoTable
         doc.autoTable({
           head: tableHeaders,
           body: tableRows,
@@ -271,7 +360,6 @@
           styles: { fontSize: 9, cellPadding: 3 }
         });
 
-        // Save PDF Document
         doc.save(`Wi-Fi_Members_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
 
       } catch (err) {
@@ -385,16 +473,20 @@
     }
 
     async function deleteUser(id) {
-      if (confirm("Are you sure you want to delete this user?")) {
+      if (confirm("Are you sure you want to delete/reject this user?")) {
         await fetch(`/api/admin/delete/${id}`, {
           method: 'DELETE',
           headers: { 'x-admin-token': adminToken }
         });
+        loadPendingApprovals();
         loadUsers();
       }
     }
 
+    // Initial Load & Auto-Refresh pending approvals every 10 seconds
+    loadPendingApprovals();
     loadUsers();
+    setInterval(loadPendingApprovals, 10000);
   </script>
 </body>
 </html>
