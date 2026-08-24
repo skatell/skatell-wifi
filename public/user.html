@@ -5,8 +5,86 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>User Portal - Wi-Fi Access</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
-    .card { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; }
+    :root {
+      --bg-color: #f4f6f9;
+      --text-color: #333333;
+      --card-bg: #ffffff;
+      --border-color: #e2e8f0;
+    }
+
+    body { 
+      font-family: Arial, sans-serif; 
+      background: var(--bg-color); 
+      color: var(--text-color);
+      display: flex; 
+      flex-direction: column;
+      align-items: center; 
+      min-height: 100vh; 
+      margin: 0; 
+      padding: 20px; 
+      box-sizing: border-box; 
+    }
+
+    /* ISP Widget Layout & Styles */
+    .isp-widget-container {
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 20px;
+    }
+    .isp-top-right {
+      display: flex;
+      justify-content: flex-end;
+      padding-right: 10px;
+    }
+    .isp-days-box {
+      border: 2px solid #2e1065;
+      color: #2e1065;
+      font-weight: bold;
+      text-align: center;
+      padding: 8px 18px;
+      font-size: 14px;
+      background: #ffffff;
+      border-radius: 4px;
+      line-height: 1.2;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .isp-progress-wrapper {
+      width: 100%;
+      margin: 15px auto 0 auto;
+    }
+    .isp-progress-bar {
+      display: flex;
+      height: 45px;
+      border: 1.5px solid #2e1065;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .bar-segment {
+      flex: 1;
+      transition: opacity 0.3s ease;
+    }
+    .red-segment   { background-color: #e52d27; }
+    .blue-segment  { background-color: #00a2ff; }
+    .green-segment { background-color: #70b04b; }
+    .isp-ticks {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-top: 6px;
+      padding-left: 2px;
+      color: var(--text-color);
+    }
+    .dots {
+      letter-spacing: 2px;
+      color: var(--text-color);
+      opacity: 0.7;
+    }
+
+    /* Portal Card Styles */
+    .card { background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; box-sizing: border-box; }
     input { width: 92%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; }
     button { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     button:hover { background: #218838; }
@@ -24,6 +102,29 @@
   </style>
 </head>
 <body>
+
+  <!-- ISP Top-Right Box & Timeline Progress Bar Component -->
+  <div class="isp-widget-container">
+    <div class="isp-top-right">
+      <div id="ispDaysBox" class="isp-days-box">
+        <span id="ispDaysCount">30</span> DAYS<br>REMAINING
+      </div>
+    </div>
+
+    <div class="isp-progress-wrapper">
+      <div class="isp-progress-bar">
+        <div class="bar-segment red-segment"></div>
+        <div class="bar-segment blue-segment"></div>
+        <div class="bar-segment green-segment"></div>
+      </div>
+      <div class="isp-ticks">
+        <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+        <span>6</span><span>7</span><span>8</span><span>9</span>
+        <span class="dots">...........................................</span>
+        <span>30</span>
+      </div>
+    </div>
+  </div>
 
   <!-- Login Form -->
   <div class="card" id="loginCard">
@@ -59,6 +160,29 @@
   </div>
 
   <script>
+    // Fetch ISP Router Status and highlight active segment
+    async function updateIspWidget() {
+      try {
+        const res = await fetch('/api/isp-status');
+        const data = await res.json();
+        const days = data.days_left || 0;
+
+        document.getElementById('ispDaysCount').innerText = days;
+
+        const redSeg = document.querySelector('.red-segment');
+        const blueSeg = document.querySelector('.blue-segment');
+        const greenSeg = document.querySelector('.green-segment');
+
+        if (redSeg && blueSeg && greenSeg) {
+          redSeg.style.opacity = (days >= 1 && days <= 9) ? "1" : "0.35";
+          blueSeg.style.opacity = (days >= 10 && days <= 19) ? "1" : "0.35";
+          greenSeg.style.opacity = (days >= 20 && days <= 30) ? "1" : "0.35";
+        }
+      } catch (e) {
+        console.error('Failed to sync ISP Status:', e);
+      }
+    }
+
     async function loginUser() {
       const name = document.getElementById('loginName').value;
       const phone = document.getElementById('loginPhone').value;
@@ -131,8 +255,11 @@
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    // Check URL for incoming parameters after payment and auto-login
+    // Check URL parameters & sync ISP Widget on load
     window.addEventListener('DOMContentLoaded', () => {
+      updateIspWidget();
+      setInterval(updateIspWidget, 30000);
+
       const urlParams = new URLSearchParams(window.location.search);
       const name = urlParams.get('name');
       const phone = urlParams.get('phone');
