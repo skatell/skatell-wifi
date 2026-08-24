@@ -37,6 +37,7 @@
       display: flex;
       min-height: 100vh;
       transition: background 0.3s, color 0.3s;
+      position: relative;
     }
 
     /* Admin Login Overlay */
@@ -106,6 +107,7 @@
       flex-direction: column;
       padding: 20px 0;
       flex-shrink: 0;
+      transition: transform 0.3s ease;
     }
 
     .sidebar-brand {
@@ -156,6 +158,42 @@
       border-radius: 6px;
       cursor: pointer;
       font-weight: bold;
+    }
+
+    /* Mobile Hamburger Menu Button (Hidden on Desktop) */
+    .mobile-menu-btn {
+      display: none;
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      font-size: 18px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-bottom: 15px;
+    }
+
+    /* Responsive adjustments for mobile screens */
+    @media screen and (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        left: -250px;
+        top: 0;
+        height: 100%;
+        z-index: 9999;
+        box-shadow: 4px 0 15px rgba(0,0,0,0.5);
+      }
+      .sidebar.mobile-open {
+        transform: translateX(250px);
+      }
+      .mobile-menu-btn {
+        display: inline-block;
+      }
+      .main-content {
+        padding: 15px;
+        width: 100%;
+        box-sizing: border-box;
+      }
     }
 
     /* Main Content Area */
@@ -358,6 +396,9 @@
 
   <!-- Main Content Area -->
   <div class="main-content">
+    
+    <!-- Mobile Hamburger Toggle Button -->
+    <button class="mobile-menu-btn" onclick="toggleMobileSidebar()">☰ Menu</button>
     
     <!-- ISP Top Container -->
     <div class="isp-widget-container">
@@ -633,13 +674,23 @@
       }
     }
 
-    // Navigation Switcher
+    // Navigation Switcher & Mobile Menu Toggle
+    function toggleMobileSidebar() {
+      const sidebar = document.querySelector('.sidebar');
+      sidebar.classList.toggle('mobile-open');
+    }
+
     function switchTab(tabId, element) {
       document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
       
       document.getElementById(tabId).classList.add('active');
       if (element) element.classList.add('active');
+
+      // Hide sidebar on mobile after selecting an option
+      if (window.innerWidth <= 768) {
+        document.querySelector('.sidebar').classList.remove('mobile-open');
+      }
     }
 
     // Theme Switcher Logic
@@ -728,7 +779,7 @@
       document.head.appendChild(style);
 
       const opt = {
-        margin:      0.5,
+        margin:     0.5,
         filename:    'active_members_report.pdf',
         image:       { type: 'jpeg', quality: 0.98 },
         html2canvas:   { scale: 2 },
@@ -958,36 +1009,17 @@
       loadBlacklist();
     }
 
-    async function handleChangeCredentials(e) {
-      e.preventDefault();
-      const newUsername = document.getElementById('newUsername').value;
-      const newPassword = document.getElementById('newPassword').value;
-      const res = await fetch('/api/admin/change-credentials', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ newUsername, newPassword })
-      });
-      const data = await res.json();
-      alert(data.message);
-      e.target.reset();
-    }
-
     function refreshAll() {
-      if (!token) return;
-      updateIspWidget();
-      loadPending();
-      loadUsers();
-      loadBlacklist();
+      if (token) {
+        loadUsers();
+        loadPending();
+        loadBlacklist();
+        updateIspWidget();
+      }
     }
 
-    window.onload = () => {
-      if (token) {
-        refreshAll();
-      }
-    };
-    setInterval(() => {
-      if (token) updateIspWidget();
-    }, 30000);
+    refreshAll();
+    setInterval(refreshAll, 10000); // Auto-refresh data every 10 seconds
   </script>
 </body>
 </html>
