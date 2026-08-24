@@ -71,6 +71,11 @@ async function initDb() {
       );
     `);
 
+    // Safety check to automatically add 'last_updated' if it's missing from an older table version
+    await pool.query(`
+      ALTER TABLE isp_settings ADD COLUMN IF NOT EXISTS last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    `);
+
     await pool.query(`
       INSERT INTO isp_settings (id, days_left, last_updated)
       VALUES (1, 30, CURRENT_TIMESTAMP)
