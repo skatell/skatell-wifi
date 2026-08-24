@@ -78,7 +78,7 @@ app.post('/api/admin/change-credentials', requireAuthAPI, (req, res) => {
   return res.json({ success: true, message: 'Credentials updated successfully!' });
 });
 
-// User Portal Login Endpoint
+// User Portal Login Endpoint (Updated with formatted payment_date and end_date)
 app.post('/api/user/login', async (req, res) => {
   try {
     let { name, phone } = req.body;
@@ -90,7 +90,10 @@ app.post('/api/user/login', async (req, res) => {
     }
 
     const queryText = `
-      SELECT id, phone_number, user_name, mpesa_code, amount_paid, device_name, mac_address, start_date, expiry_date, is_paused, remaining_seconds, is_approved,
+      SELECT id, phone_number, user_name, mpesa_code, amount_paid, device_name, mac_address, 
+      TO_CHAR(start_date, 'YYYY-MM-DD HH24:MI') AS payment_date,
+      TO_CHAR(expiry_date, 'YYYY-MM-DD HH24:MI') AS end_date,
+      is_paused, remaining_seconds, is_approved,
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
         WHEN is_paused THEN 'Paused'
@@ -173,11 +176,14 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// Member Dashboard Management Endpoints (Active Users)
+// Member Dashboard Management Endpoints (Active Users - Updated with formatted payment_date and end_date)
 app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
   try {
     const queryText = `
-      SELECT id, phone_number, user_name, mpesa_code, amount_paid, device_name, mac_address, start_date, expiry_date, is_paused, remaining_seconds, is_approved,
+      SELECT id, phone_number, user_name, mpesa_code, amount_paid, device_name, mac_address, 
+      TO_CHAR(start_date, 'YYYY-MM-DD HH24:MI') AS payment_date,
+      TO_CHAR(expiry_date, 'YYYY-MM-DD HH24:MI') AS end_date,
+      is_paused, remaining_seconds, is_approved,
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
         WHEN is_paused THEN 'Paused'
