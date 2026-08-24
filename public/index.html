@@ -22,16 +22,17 @@
     <h2>Wi-Fi Access Payment</h2>
     <p style="color: #666; font-size: 14px;">Enter your details and M-Pesa transaction code to activate your internet.</p>
 
-    <input type="text" id="name" placeholder="Full Name">
-    <input type="text" id="phone" placeholder="Phone Number (e.g. 0712345678)">
-    <input type="text" id="mpesaCode" placeholder="M-Pesa Transaction Code">
-    <input type="number" id="amount" placeholder="Amount Paid (KES)">
+    <form id="payForm" onsubmit="return false;">
+      <input type="text" id="name" placeholder="Full Name">
+      <input type="text" id="phone" placeholder="Phone Number (e.g. 0712345678)">
+      <input type="text" id="mpesaCode" placeholder="M-Pesa Transaction Code">
+      <input type="number" id="amount" placeholder="Amount Paid (KES)">
 
-    <button id="payBtn" onclick="submitPayment()">Verify & Connect</button>
+      <button type="button" id="payBtn" onclick="submitPayment()">Verify & Connect</button>
+    </form>
     
     <div id="statusMsg" class="msg"></div>
 
-    <!-- Step 3: Quick Link to User Portal -->
     <div>
       <a href="/user" class="portal-link">Already have an active plan? Click here to access your portal</a>
     </div>
@@ -59,7 +60,6 @@
       payBtn.innerText = 'Verifying...';
 
       try {
-        // Step 2: Submit payment details to the backend API
         const res = await fetch('/api/verify-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -69,9 +69,13 @@
         const data = await res.json();
 
         if (data.success) {
-          alert(data.message);
-          // Redirect straight to user portal with credentials in URL for auto-login
-          window.location.href = `/user?name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`;
+          statusMsg.style.color = '#28a745';
+          statusMsg.innerText = 'Payment verified! Redirecting to portal...';
+          
+          // Direct browser navigation after short delay
+          setTimeout(() => {
+            window.location.assign(`/user?name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`);
+          }, 800);
         } else {
           statusMsg.className = 'msg error';
           statusMsg.innerText = data.message || 'Payment verification failed.';
