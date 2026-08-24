@@ -87,7 +87,6 @@ const requireAuthAPI = (req, res, next) => {
 
 // --- ISP System Endpoints ---
 
-// Fetch Main ISP Days Remaining
 app.get('/api/isp-status', async (req, res) => {
   try {
     const result = await pool.query("SELECT days_left FROM isp_settings WHERE id = 1");
@@ -95,17 +94,12 @@ app.get('/api/isp-status', async (req, res) => {
       return res.json({ days_left: 0, is_active: false });
     }
     const daysLeft = result.rows[0].days_left;
-
-    res.json({
-      days_left: daysLeft,
-      is_active: daysLeft > 0
-    });
+    res.json({ days_left: daysLeft, is_active: daysLeft > 0 });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Admin Endpoint to Update ISP Days
 app.post('/api/admin/update-isp-days', requireAuthAPI, async (req, res) => {
   try {
     const { days } = req.body;
@@ -118,14 +112,8 @@ app.post('/api/admin/update-isp-days', requireAuthAPI, async (req, res) => {
     const autoPauseRes = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_auto_paused'");
     const isAutoPaused = autoPauseRes.rowCount > 0 && autoPauseRes.rows[0].value === 'true';
 
-    // Update isp_settings table
-    await pool.query(`
-      UPDATE isp_settings 
-      SET days_left = $1 
-      WHERE id = 1;
-    `, [parsedDays]);
+    await pool.query(`UPDATE isp_settings SET days_left = $1 WHERE id = 1;`, [parsedDays]);
 
-    // Scenario A: Days set to 0 -> Pause all active clients
     if (parsedDays === 0) {
       await pool.query(`
         UPDATE paid_users 
@@ -134,14 +122,8 @@ app.post('/api/admin/update-isp-days', requireAuthAPI, async (req, res) => {
             status = 'Paused'
         WHERE is_approved = 1 AND is_paused = false AND expiry_date > CURRENT_TIMESTAMP;
       `);
-
-      await pool.query(`
-        INSERT INTO system_settings (key, value) VALUES ('isp_auto_paused', 'true')
-        ON CONFLICT (key) DO UPDATE SET value = 'true';
-      `);
-    } 
-    // Scenario B: Days restored (>0) -> Resume clients
-    else if (parsedDays > 0 && isAutoPaused) {
+      await pool.query(`INSERT INTO system_settings (key, value) VALUES ('isp_auto_paused', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true';`);
+    } else if (parsedDays > 0 && isAutoPaused) {
       await pool.query(`
         UPDATE paid_users 
         SET is_paused = false, 
@@ -150,34 +132,21 @@ app.post('/api/admin/update-isp-days', requireAuthAPI, async (req, res) => {
             status = 'Active'
         WHERE is_approved = 1 AND is_paused = true AND remaining_seconds > 0;
       `);
-
-      await pool.query(`
-        INSERT INTO system_settings (key, value) VALUES ('isp_auto_paused', 'false')
-        ON CONFLICT (key) DO UPDATE SET value = 'false';
-      `);
+      await pool.query(`INSERT INTO system_settings (key, value) VALUES ('isp_auto_paused', 'false') ON CONFLICT (key) DO UPDATE SET value = 'false';`);
     }
 
-    res.json({ 
-      success: true, 
-      message: `Main 5G Router link set to ${parsedDays} Days!`,
-      days_left: parsedDays 
-    });
+    res.json({ success: true, message: `Main link set to ${parsedDays} Days!`, days_left: parsedDays });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Admin endpoint to refill Main ISP subscription by +30 Days
 app.post('/api/admin/refill-isp', requireAuthAPI, async (req, res) => {
   try {
     const autoPauseRes = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_auto_paused'");
     const isAutoPaused = autoPauseRes.rowCount > 0 && autoPauseRes.rows[0].value === 'true';
 
-    await pool.query(`
-      UPDATE isp_settings 
-      SET days_left = 30 
-      WHERE id = 1;
-    `);
+    await pool.query(`UPDATE isp_settings SET days_left = 30 WHERE id = 1;`);
 
     if (isAutoPaused) {
       await pool.query(`
@@ -188,14 +157,10 @@ app.post('/api/admin/refill-isp', requireAuthAPI, async (req, res) => {
             status = 'Active'
         WHERE is_approved = 1 AND is_paused = true AND remaining_seconds > 0;
       `);
-
-      await pool.query(`
-        INSERT INTO system_settings (key, value) VALUES ('isp_auto_paused', 'false')
-        ON CONFLICT (key) DO UPDATE SET value = 'false';
-      `);
+      await pool.query(`INSERT INTO system_settings (key, value) VALUES ('isp_auto_paused', 'false') ON CONFLICT (key) DO UPDATE SET value = 'false';`);
     }
 
-    res.json({ success: true, message: 'Main 5G Router Subscription successfully refilled for 30 Days!' });
+    res.json({ success: true, message: 'Main 5G Router Subscription refilled for 30 Days!' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -205,10 +170,9 @@ app.post('/api/admin/refill-isp', requireAuthAPI, async (req, res) => {
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
-app.get('/admin-login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html'))); // Added to support your button link!
+app.get('/admin-login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/user', (req, res) => res.sendFile(path.join(__dirname, 'public', 'user.html')));
 
-// User Count Endpoint
 app.get('/api/user-count', async (req, res) => {
   try {
     const result = await pool.query('SELECT COUNT(*) AS count FROM paid_users');
@@ -218,7 +182,6 @@ app.get('/api/user-count', async (req, res) => {
   }
 });
 
-// Admin Login
 app.post('/api/admin/login', (req, res) => {
   let { username, password } = req.body;
   username = String(username || '').trim();
@@ -232,7 +195,6 @@ app.post('/api/admin/login', (req, res) => {
   return res.status(401).json({ success: false, message: 'Invalid Username or Password!' });
 });
 
-// Change Admin Credentials
 app.post('/api/admin/change-credentials', requireAuthAPI, (req, res) => {
   const { newUsername, newPassword } = req.body;
   if (!newUsername || !newPassword) {
@@ -243,7 +205,6 @@ app.post('/api/admin/change-credentials', requireAuthAPI, (req, res) => {
   return res.json({ success: true, message: 'Credentials updated successfully!' });
 });
 
-// User Portal Login Endpoint
 app.post('/api/user/login', async (req, res) => {
   try {
     let { name, phone } = req.body;
@@ -285,7 +246,7 @@ app.post('/api/user/login', async (req, res) => {
   }
 });
 
-// Public Payment Verification Endpoint
+// Public Payment Verification Endpoint with Auto-Generated Code
 app.post('/api/verify-payment', async (req, res) => {
   try {
     const ispRes = await pool.query("SELECT days_left FROM isp_settings WHERE id = 1");
@@ -296,14 +257,13 @@ app.post('/api/verify-payment', async (req, res) => {
       });
     }
 
-    let { name, phone, mpesaCode, amount, deviceName, macAddress } = req.body;
-    if (!name || !phone || !mpesaCode || !amount || !deviceName || !macAddress) {
-      return res.status(400).json({ success: false, message: 'Provide name, phone number, transaction code, package, device name, and MAC address.' });
+    let { name, phone, amount, deviceName, macAddress } = req.body;
+    if (!name || !phone || !amount || !deviceName || !macAddress) {
+      return res.status(400).json({ success: false, message: 'Provide name, phone number, package, device name, and MAC address.' });
     }
 
     name = String(name).trim();
     phone = String(phone).trim();
-    mpesaCode = String(mpesaCode).trim().toUpperCase();
     deviceName = String(deviceName).trim();
     macAddress = String(macAddress).trim().toUpperCase();
     const paidAmount = parseFloat(amount) || 0;
@@ -317,8 +277,17 @@ app.post('/api/verify-payment', async (req, res) => {
 
     const calculatedDays = calculatePackageDays(paidAmount);
 
-    const checkCode = await pool.query('SELECT * FROM paid_users WHERE mpesa_code = $1', [mpesaCode]);
-    if (checkCode.rowCount > 0) return res.status(400).json({ success: false, message: 'M-Pesa code already used.' });
+    // Automatically generate a unique code for the user
+    let mpesaCode = 'AUTO_' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    let codeExists = true;
+    while (codeExists) {
+      const checkCode = await pool.query('SELECT * FROM paid_users WHERE mpesa_code = $1', [mpesaCode]);
+      if (checkCode.rowCount === 0) {
+        codeExists = false;
+      } else {
+        mpesaCode = 'AUTO_' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      }
+    }
 
     const queryText = `
       INSERT INTO paid_users (
@@ -343,13 +312,12 @@ app.post('/api/verify-payment', async (req, res) => {
       RETURNING *;
     `;
     await pool.query(queryText, [name, phone, paidAmount, mpesaCode, calculatedDays, deviceName, macAddress]);
-    return res.json({ success: true, message: `Submission received! Account status is Pending until Admin approval.` });
+    return res.json({ success: true, message: `Submission received! Your generated code is ${mpesaCode}. Status is Pending until Admin approval.` });
   } catch (err) {
     return res.status(500).json({ success: false, message: `Database error: ${err.message}` });
   }
 });
 
-// Active Users Endpoint
 app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
   try {
     const queryText = `
@@ -379,7 +347,6 @@ app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
   }
 });
 
-// Pending Approvals Endpoint
 app.get('/api/admin/pending-approvals', requireAuthAPI, async (req, res) => {
   try {
     const queryText = `
@@ -396,7 +363,6 @@ app.get('/api/admin/pending-approvals', requireAuthAPI, async (req, res) => {
   }
 });
 
-// Approve User Endpoint
 app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
   try {
     const { id } = req.body;
@@ -422,7 +388,6 @@ app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
   }
 });
 
-// Edit Member Details Endpoint
 app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
   try {
     const { id, user_name, phone_number, mpesa_code, amount_paid, requested_days, device_name, mac_address, status, is_approved } = req.body;
@@ -462,7 +427,6 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
   }
 });
 
-// Manual Registration Endpoint
 app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
   try {
     const { phone, name, amount, days, device_name, mac_address } = req.body;
@@ -509,7 +473,6 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
   }
 });
 
-// Pause/Resume User Endpoint
 app.post('/api/admin/toggle-pause', requireAuthAPI, async (req, res) => {
   try {
     const { id } = req.body;
@@ -550,7 +513,6 @@ app.delete('/api/admin/delete/:id', requireAuthAPI, async (req, res) => {
   }
 });
 
-// Blacklist API Routes
 app.get('/api/admin/blacklist', requireAuthAPI, async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM blacklist ORDER BY created_at DESC');
@@ -573,7 +535,6 @@ app.delete('/api/admin/blacklist/:phone', requireAuthAPI, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Fallback Route
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
