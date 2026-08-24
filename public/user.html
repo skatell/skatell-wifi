@@ -19,6 +19,8 @@
     .Active { background: #d4edda; color: #155724; }
     .Paused { background: #fff3cd; color: #856404; }
     .Expired { background: #f8d7da; color: #721c24; }
+    .Pending { background: #ffeba2; color: #856404; }
+    .alert-pending { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 12px; border-radius: 6px; margin-top: 15px; font-size: 13px; text-align: left; line-height: 1.4; }
   </style>
 </head>
 <body>
@@ -39,6 +41,10 @@
   <div class="card" id="dashCard" style="display: none;">
     <h2>My Wi-Fi Subscription</h2>
     
+    <div id="pendingAlert" class="alert-pending" style="display: none;">
+      <strong>⚠️ Payment Submitted!</strong><br> Your payment is currently pending admin approval. Your subscription timer will start as soon as it is approved.
+    </div>
+
     <table class="info-table">
       <tr><td class="label">Name:</td><td id="uName"></td></tr>
       <tr><td class="label">Phone Number:</td><td id="uPhone"></td></tr>
@@ -78,10 +84,23 @@
           document.getElementById('uName').innerText = user.user_name;
           document.getElementById('uPhone').innerText = user.phone_number;
           document.getElementById('uAmount').innerText = `KES ${user.amount_paid}`;
-          document.getElementById('uStatus').innerHTML = `<span class="badge ${user.status}">${user.status}</span>`;
-          document.getElementById('uStart').innerText = new Date(user.start_date).toLocaleDateString();
-          document.getElementById('uEnd').innerText = new Date(user.expiry_date).toLocaleDateString();
-          document.getElementById('uDays').innerText = `${user.days_left} Days`;
+          
+          const isPending = user.status === 'Pending' || user.is_approved === 0 || user.is_approved === false;
+          const pendingAlert = document.getElementById('pendingAlert');
+
+          if (isPending) {
+            document.getElementById('uStatus').innerHTML = `<span class="badge Pending">Pending Approval</span>`;
+            document.getElementById('uStart').innerText = 'Awaiting Approval';
+            document.getElementById('uEnd').innerText = 'Awaiting Approval';
+            document.getElementById('uDays').innerText = '0 Days (Paused)';
+            pendingAlert.style.display = 'block';
+          } else {
+            document.getElementById('uStatus').innerHTML = `<span class="badge ${user.status}">${user.status}</span>`;
+            document.getElementById('uStart').innerText = user.start_date ? new Date(user.start_date).toLocaleDateString() : 'N/A';
+            document.getElementById('uEnd').innerText = user.expiry_date ? new Date(user.expiry_date).toLocaleDateString() : 'N/A';
+            document.getElementById('uDays').innerText = `${user.days_left} Days`;
+            pendingAlert.style.display = 'none';
+          }
 
           document.getElementById('loginCard').style.display = 'none';
           document.getElementById('dashCard').style.display = 'block';
@@ -98,11 +117,10 @@
       document.getElementById('loginPhone').value = '';
       document.getElementById('dashCard').style.display = 'none';
       document.getElementById('loginCard').style.display = 'block';
-      // Clear URL params on logout
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    // Step 1: Check URL for incoming parameters after payment and auto-login
+    // Check URL for incoming parameters after payment and auto-login
     window.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
       const name = urlParams.get('name');
