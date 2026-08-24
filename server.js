@@ -33,7 +33,7 @@ app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'log
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/user', (req, res) => res.sendFile(path.join(__dirname, 'public', 'user.html')));
 
-// User Count Endpoint (For Auto-Generating Custom Codes like LAWI0001)
+// User Count Endpoint
 app.get('/api/user-count', async (req, res) => {
   try {
     const result = await pool.query('SELECT COUNT(*) AS count FROM paid_users');
@@ -80,13 +80,15 @@ app.post('/api/user/login', async (req, res) => {
     }
 
     const queryText = `
-      SELECT id, phone_number, user_name, mpesa_code, amount_paid, start_date, expiry_date, is_paused, remaining_seconds,
+      SELECT id, phone_number, user_name, mpesa_code, amount_paid, start_date, expiry_date, is_paused, remaining_seconds, is_approved,
       CASE 
+        WHEN is_approved = 0 OR is_approved IS FALSE THEN 'Pending'
         WHEN is_paused THEN 'Paused'
         WHEN CURRENT_TIMESTAMP > expiry_date THEN 'Expired'
         ELSE 'Active'
       END AS status,
       CASE 
+        WHEN is_approved = 0 OR is_approved IS FALSE THEN 0
         WHEN is_paused THEN CEIL(remaining_seconds / 86400.0)
         ELSE GREATEST(0, CEIL(EXTRACT(EPOCH FROM (expiry_date - CURRENT_TIMESTAMP)) / 86400.0))
       END AS days_left
@@ -105,7 +107,7 @@ app.post('/api/user/login', async (req, res) => {
   }
 });
 
-// Public Payment Verification Endpoint
+// Public Payment Verification / Submission Endpoint (MODIFIED FOR PENDING APPROVAL)
 app.post('/api/verify-payment', async (req, res) => {
   try {
     let { name, phone, mpesaCode, amount } = req.body;
@@ -132,24 +134,26 @@ app.post('/api/verify-payment', async (req, res) => {
     const checkCode = await pool.query('SELECT * FROM paid_users WHERE mpesa_code = $1', [mpesaCode]);
     if (checkCode.rowCount > 0) return res.status(400).json({ success: false, message: 'M-Pesa code already used.' });
 
-    // UPSERT Query: Replaces expired/existing record on phone_number conflict
+    // UPSERT Query: Saves user as 'Pending' with NULL start/expiry dates
     const queryText = `
-      INSERT INTO paid_users (user_name, phone_number, amount_paid, mpesa_code, status, start_date, expiry_date, is_paused, remaining_seconds)
-      VALUES ($1, $2, $3, $4, 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($5 || ' days')::INTERVAL, false, 0)
+      INSERT INTO paid_users (user_name, phone_number, amount_paid, mpesa_code, status, is_approved, requested_days, start_date, expiry_date, is_paused, remaining_seconds)
+      VALUES ($1, $2, $3, $4, 'Pending', 0, $5, NULL, NULL, false, 0)
       ON CONFLICT (phone_number) 
       DO UPDATE SET 
         user_name = EXCLUDED.user_name,
         mpesa_code = EXCLUDED.mpesa_code,
         amount_paid = EXCLUDED.amount_paid,
-        status = 'Active',
+        requested_days = $5,
+        status = 'Pending',
+        is_approved = 0,
         is_paused = false,
         remaining_seconds = 0,
-        start_date = CURRENT_TIMESTAMP,
-        expiry_date = CURRENT_TIMESTAMP + ($5 || ' days')::INTERVAL
+        start_date = NULL,
+        expiry_date = NULL
       RETURNING *;
     `;
     await pool.query(queryText, [name, phone, paidAmount, mpesaCode, calculatedDays]);
-    return res.json({ success: true, message: `Payment verified! Wi-Fi active for ${calculatedDays} days.` });
+    return res.json({ success: true, message: `Submission received! Account status is Pending until Admin approval.` });
   } catch (err) {
     return res.status(500).json({ success: false, message: `Database error: ${err.message}` });
   }
@@ -159,20 +163,63 @@ app.post('/api/verify-payment', async (req, res) => {
 app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
   try {
     const queryText = `
-      SELECT id, phone_number, user_name, mpesa_code, amount_paid, start_date, expiry_date, is_paused, remaining_seconds,
+      SELECT id, phone_number, user_name, mpesa_code, amount_paid, start_date, expiry_date, is_paused, remaining_seconds, is_approved,
       CASE 
+        WHEN is_approved = 0 OR is_approved IS FALSE THEN 'Pending'
         WHEN is_paused THEN 'Paused'
         WHEN CURRENT_TIMESTAMP > expiry_date THEN 'Expired'
         ELSE 'Active'
       END AS status,
       CASE 
+        WHEN is_approved = 0 OR is_approved IS FALSE THEN 0
         WHEN is_paused THEN CEIL(remaining_seconds / 86400.0)
         ELSE GREATEST(0, CEIL(EXTRACT(EPOCH FROM (expiry_date - CURRENT_TIMESTAMP)) / 86400.0))
       END AS days_left
-      FROM paid_users ORDER BY start_date DESC;
+      FROM paid_users 
+      WHERE is_approved = 1 OR is_approved IS TRUE
+      ORDER BY start_date DESC;
     `;
     const result = await pool.query(queryText);
     res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get Pending Approvals Notification Endpoint
+app.get('/api/admin/pending-approvals', requireAuthAPI, async (req, res) => {
+  try {
+    const queryText = `
+      SELECT * FROM paid_users 
+      WHERE is_approved = 0 OR is_approved IS FALSE OR status = 'Pending' 
+      ORDER BY id DESC;
+    `;
+    const result = await pool.query(queryText);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Approve User Endpoint (Starts the Countdown Clock)
+app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
+  try {
+    const { id } = req.body;
+    const userRes = await pool.query('SELECT requested_days, amount_paid FROM paid_users WHERE id = $1', [id]);
+    if (userRes.rowCount === 0) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const days = userRes.rows[0].requested_days || Math.max(1, Math.round(((userRes.rows[0].amount_paid || 200) / 200) * 30));
+
+    const updateQuery = `
+      UPDATE paid_users 
+      SET is_approved = 1,
+          status = 'Active',
+          start_date = CURRENT_TIMESTAMP,
+          expiry_date = CURRENT_TIMESTAMP + ($1 || ' days')::INTERVAL
+      WHERE id = $2;
+    `;
+    await pool.query(updateQuery, [days, id]);
+    res.json({ success: true, message: 'Member approved! Subscription countdown started.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -204,13 +251,14 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
     const daysNum = days ? parseInt(days) : Math.max(1, Math.round((amountNum / 200) * 30));
 
     const queryText = `
-      INSERT INTO paid_users (phone_number, user_name, amount_paid, mpesa_code, status, start_date, expiry_date, is_paused, remaining_seconds)
-      VALUES ($1, $2, $3, 'MANUAL_REG', 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL, false, 0)
+      INSERT INTO paid_users (phone_number, user_name, amount_paid, mpesa_code, status, is_approved, requested_days, start_date, expiry_date, is_paused, remaining_seconds)
+      VALUES ($1, $2, $3, 'MANUAL_REG', 'Active', 1, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL, false, 0)
       ON CONFLICT (phone_number) DO UPDATE SET
         user_name = EXCLUDED.user_name,
         amount_paid = EXCLUDED.amount_paid,
         mpesa_code = 'MANUAL_REG',
         status = 'Active',
+        is_approved = 1,
         is_paused = false,
         remaining_seconds = 0,
         start_date = CURRENT_TIMESTAMP,
