@@ -10,14 +10,13 @@
     .admin-info { background: #e9ecef; border-left: 4px solid #007bff; padding: 12px; margin-bottom: 20px; text-align: left; border-radius: 4px; }
     .admin-info p { margin: 4px 0; font-size: 14px; color: #333; }
     input { width: 92%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; box-sizing: border-box; }
+    input[readonly] { background-color: #e9ecef; cursor: not-allowed; color: #495057; font-weight: bold; }
     button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     button:hover { background: #0056b3; }
     .msg { margin-top: 12px; font-weight: bold; font-size: 14px; }
     .error { color: #dc3545; }
     .portal-link { display: inline-block; margin-top: 15px; color: #007bff; text-decoration: none; font-weight: bold; font-size: 14px; }
     .portal-link:hover { text-decoration: underline; }
-    
-    /* Support Box Styling */
     .support-box { margin-top: 25px; padding-top: 15px; border-top: 1px solid #eee; font-size: 13px; color: #555; }
     .contact-btn { display: inline-block; margin: 5px 4px; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 13px; }
     .wa-btn { background: #25D366; color: white; }
@@ -29,19 +28,22 @@
   <div class="card">
     <h2>Wi-Fi Access Payment</h2>
     
-    <!-- Payment Instructions Display -->
     <div class="admin-info">
       <p><strong>Payment Instructions:</strong></p>
       <p>Send M-Pesa Payment to:</p>
       <p><strong>Phone / Till:</strong> 0143 149 490</p>
     </div>
 
-    <p style="color: #666; font-size: 14px;">Enter your details and M-Pesa transaction code to activate your internet.</p>
+    <p style="color: #666; font-size: 14px;">Enter your details to generate your access code and activate internet.</p>
 
     <form id="payForm" onsubmit="return false;">
-      <input type="text" id="name" placeholder="Full Name">
+      <!-- Updated Placeholder -->
+      <input type="text" id="name" placeholder="Name (e.g. Lawi)" oninput="updateGeneratedCode()">
       <input type="text" id="phone" placeholder="Phone Number (e.g. 0712345678)">
-      <input type="text" id="mpesaCode" placeholder="M-Pesa Transaction Code">
+      
+      <!-- Auto-Generated Code Field -->
+      <input type="text" id="mpesaCode" placeholder="Auto-Generated Code" readonly>
+      
       <input type="number" id="amount" placeholder="Amount Paid (KES)">
 
       <button type="button" id="payBtn" onclick="submitPayment()">Verify & Connect</button>
@@ -53,7 +55,6 @@
       <a href="/user" class="portal-link">Already have an active plan? Click here to access your portal</a>
     </div>
 
-    <!-- Support Section -->
     <div class="support-box">
       <p style="margin-bottom: 8px;"><strong>Need help or having trouble?</strong></p>
       <p style="margin: 4px 0;">Contact administrator via WhatsApp or Call:</p>
@@ -67,6 +68,39 @@
   </div>
 
   <script>
+    let currentSequence = 1;
+
+    // Fetch total registered user count from server to calculate sequence number
+    async function fetchSequence() {
+      try {
+        const res = await fetch('/api/user-count');
+        const data = await res.json();
+        if (data.count !== undefined) {
+          currentSequence = data.count + 1;
+          updateGeneratedCode();
+        }
+      } catch (err) {
+        console.error('Error fetching count:', err);
+      }
+    }
+
+    // Auto-generate transaction code based on Name + Sequence Number
+    function updateGeneratedCode() {
+      const nameInput = document.getElementById('name').value.trim();
+      const codeField = document.getElementById('mpesaCode');
+      
+      if (!nameInput) {
+        codeField.value = '';
+        return;
+      }
+
+      // Get first name in UPPERCASE (e.g. "Lawi")
+      const firstName = nameInput.split(' ')[0].toUpperCase().replace(/[^A-Z]/g, '');
+      const paddedNumber = String(currentSequence).padStart(4, '0'); // Formats: 0001, 0002...
+
+      codeField.value = `${firstName}${paddedNumber}`;
+    }
+
     async function submitPayment() {
       const name = document.getElementById('name').value.trim();
       const phone = document.getElementById('phone').value.trim();
@@ -116,6 +150,9 @@
         payBtn.innerText = 'Verify & Connect';
       }
     }
+
+    // Load initial user count when page loads
+    window.addEventListener('DOMContentLoaded', fetchSequence);
   </script>
 </body>
 </html>
