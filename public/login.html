@@ -85,12 +85,6 @@
             border-color: #0056b3;
         }
 
-        /* Auto-generated code field styling */
-        .auto-code {
-            background-color: #e9ecef;
-            color: #6c757d;
-        }
-
         /* Submit Button */
         .btn-verify {
             width: 100%;
@@ -199,7 +193,7 @@
             <span class="highlight">Phone / Till:</span> 0143 149 490</p>
         </div>
 
-        <div class="subtitle-text">Enter your details to generate your access code and activate internet.</div>
+        <div class="subtitle-text">Enter your details below. Your verification code will be automatically generated.</div>
 
         <!-- Payment Form -->
         <form id="paymentForm" style="width: 100%; display: flex; flex-direction: column; gap: 12px;">
@@ -207,7 +201,6 @@
             <input type="text" id="phone" placeholder="Phone Number (e.g. 0712345678)" required>
             <input type="text" id="deviceName" placeholder="Device Name (e.g. Tecno Spark 10, HP Laptop)" required>
             <input type="text" id="macAddress" placeholder="Wi-Fi MAC Address (e.g. AA:BB:CC:DD:EE:FF)" required>
-            <input type="text" id="mpesaCode" placeholder="M-Pesa Transaction Code (e.g. QHX7...)" required>
             
             <select id="package" required>
                 <option value="" disabled selected>-- Select WiFi Package --</option>
@@ -225,7 +218,7 @@
 
         <hr>
 
-        <!-- Help Section matching your layout -->
+        <!-- Help Section -->
         <div class="help-box">
             <p>Need help or having trouble?</p>
             <p>Contact administrator via WhatsApp or Call:</p>
@@ -244,18 +237,17 @@
             const phone = document.getElementById('phone').value.trim();
             const deviceName = document.getElementById('deviceName').value.trim();
             const macAddress = document.getElementById('macAddress').value.trim();
-            const mpesaCode = document.getElementById('mpesaCode').value.trim();
             const amount = document.getElementById('package').value;
             const msgDiv = document.getElementById('responseMsg');
 
             msgDiv.style.color = '#333';
-            msgDiv.innerText = 'Submitting payment for verification...';
+            msgDiv.innerText = 'Submitting details and generating access code...';
 
             try {
                 const res = await fetch('/api/verify-payment', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, phone, deviceName, macAddress, mpesaCode, amount })
+                    body: JSON.stringify({ name, phone, deviceName, macAddress, amount })
                 });
 
                 const data = await res.json();
@@ -263,6 +255,11 @@
                     msgDiv.style.color = '#28a745';
                     msgDiv.innerText = data.message;
                     document.getElementById('paymentForm').reset();
+                    
+                    // Optional: redirect to user portal after 4 seconds
+                    setTimeout(() => {
+                        window.location.href = '/user';
+                    }, 4000);
                 } else {
                     msgDiv.style.color = '#dc3545';
                     msgDiv.innerText = data.message || 'Verification failed.';
