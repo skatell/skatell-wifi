@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wi-Fi Access Payment</title>
+    <title>Wi-Fi Access Payment & Portal</title>
     <style>
         * {
             box-sizing: border-box;
@@ -13,7 +13,7 @@
         }
 
         body {
-            background-color: #ffffff;
+            background-color: #f4f7f6;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -24,6 +24,10 @@
         .payment-container {
             width: 100%;
             max-width: 480px;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             display: flex;
             flex-direction: column;
             gap: 15px;
@@ -34,8 +38,31 @@
             font-size: 24px;
             font-weight: bold;
             color: #000;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             text-align: center;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .nav-links a {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            text-decoration: none;
+            border-radius: 4px;
+            background-color: #e9ecef;
+            color: #333;
+        }
+
+        .nav-links a:hover {
+            background-color: #dde2e6;
         }
 
         /* Payment Instructions Box */
@@ -105,20 +132,6 @@
             background-color: #1a56db;
         }
 
-        /* Portal Link */
-        .portal-link {
-            font-size: 13px;
-            color: #0056b3;
-            text-decoration: none;
-            text-align: center;
-            margin-top: 5px;
-            font-weight: bold;
-        }
-
-        .portal-link:hover {
-            text-decoration: underline;
-        }
-
         hr {
             width: 100%;
             border: none;
@@ -184,7 +197,13 @@
 <body>
 
     <div class="payment-container">
-        <h2>Wi-Fi Access Payment</h2>
+        <h2>Wi-Fi Access Portal</h2>
+        
+        <!-- Navigation Links to User Portal / Admin -->
+        <div class="nav-links">
+            <a href="/user">Paid User Portal</a>
+            <a href="/admin">Admin Login</a>
+        </div>
 
         <!-- Instructions -->
         <div class="instructions-box">
@@ -212,8 +231,6 @@
             <button type="submit" class="btn-verify">Verify & Connect</button>
             <div id="responseMsg" class="response-msg"></div>
         </form>
-
-        <a href="/user" class="portal-link">Already have an active plan? Click here to access your portal</a>
 
         <hr>
 
