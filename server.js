@@ -534,8 +534,9 @@ app.delete('/api/admin/blacklist/:phone', requireAuthAPI, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// FIXED: Catch-all fallback route now correctly points to index.html
 app.use((req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const PORT = process.env.PORT || 10000;
