@@ -90,6 +90,7 @@
             border-radius: 4px;
             text-align: center;
             text-decoration: none;
+            cursor: pointer;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
@@ -157,32 +158,185 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             letter-spacing: 1px;
         }
+
+        /* Payment Container Section */
+        #payment-section {
+            display: none;
+            width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 6px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        #payment-section h2 {
+            color: #b71c1c;
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background-color: #00c853;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+
+        .btn-back {
+            width: 100%;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
 
     <div class="main-container">
-        <div class="btn-title">ROGERS' WIFI ACCESS PORTAL</div>
+        <!-- Main Home Portal View -->
+        <div id="home-section" style="width: 100%; display: flex; flex-direction: column; gap: 15px; align-items: center;">
+            <div class="btn-title">ROGERS' WIFI ACCESS PORTAL</div>
 
-        <div class="nav-row">
-            <a href="/admin" class="btn-admin">ADMIN LOGIN</a>
-            <a href="/user" class="btn-user">USER LOGIN</a>
-        </div>
-
-        <a href="/pay" class="btn-payment">PAYMENT PAGE</a>
-
-        <div class="help-box">
-            <p>Need help or having trouble?</p>
-            <p>Contact administrator via WhatsApp or Call:</p>
-            <div class="phone-number">0143 149 490</div>
-            <div class="help-actions">
-                <a href="https://wa.me/254143149490" target="_blank" class="btn-whatsapp">WhatsApp</a>
-                <a href="tel:0143149490" class="btn-call">Call</a>
+            <div class="nav-row">
+                <a href="/admin" class="btn-admin">ADMIN LOGIN</a>
+                <a href="/user" class="btn-user">USER LOGIN</a>
             </div>
+
+            <button type="button" class="btn-payment" id="openPayBtn">PAYMENT PAGE</button>
+
+            <div class="help-box">
+                <p>Need help or having trouble?</p>
+                <p>Contact administrator via WhatsApp or Call:</p>
+                <div class="phone-number">0143 149 490</div>
+                <div class="help-actions">
+                    <a href="https://wa.me/254143149490" target="_blank" class="btn-whatsapp">WhatsApp</a>
+                    <a href="tel:0143149490" class="btn-call">Call</a>
+                </div>
+            </div>
+
+            <div class="btn-brand">ROGERS</div>
         </div>
 
-        <div class="btn-brand">ROGERS</div>
+        <!-- Hidden Payment Section (Shows instantly when clicked) -->
+        <div id="payment-section">
+            <h2>M-PESA PAYMENT PORTAL</h2>
+            <form id="paymentForm">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="payName" required placeholder="Enter your name">
+                </div>
+                <div class="form-group">
+                    <label>Phone Number (M-Pesa)</label>
+                    <input type="text" id="payPhone" required placeholder="07XXXXXXXX">
+                </div>
+                <div class="form-group">
+                    <label>Select Package</label>
+                    <select id="payAmount" required>
+                        <option value="200">Ksh 200 - 30 Days (Full Month)</option>
+                        <option value="100">Ksh 100 - 10 Days</option>
+                        <option value="50">Ksh 50 - 2 Days</option>
+                    </select>
+                </div>
+                <!-- Hidden automated device details collected seamlessly -->
+                <input type="hidden" id="deviceName" value="Web User Device">
+                <input type="hidden" id="macAddress" value="XX:XX:XX:XX:XX:XX">
+
+                <button type="submit" class="btn-submit">SUBMIT PAYMENT REQUEST</button>
+                <button type="button" class="btn-back" id="backBtn">Back to Home</button>
+            </form>
+            <div id="payResponse" style="margin-top: 10px; font-size: 13px; text-align: center; font-weight: bold;"></div>
+        </div>
     </div>
 
+    <script>
+        const homeSection = document.getElementById('home-section');
+        const paymentSection = document.getElementById('payment-section');
+        const openPayBtn = document.getElementById('openPayBtn');
+        const backBtn = document.getElementById('backBtn');
+        const paymentForm = document.getElementById('paymentForm');
+        const payResponse = document.getElementById('payResponse');
+
+        // Toggle to Payment Form smoothly without reloading
+        openPayBtn.addEventListener('click', () => {
+            homeSection.style.display = 'none';
+            paymentSection.style.display = 'block';
+        });
+
+        // Toggle back to Home view
+        backBtn.addEventListener('click', () => {
+            paymentSection.style.display = 'none';
+            homeSection.style.display = 'flex';
+            payResponse.innerText = '';
+        });
+
+        // Handle Payment Form Submission securely to your backend API
+        paymentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            payResponse.style.color = '#333';
+            payResponse.innerText = 'Processing request...';
+
+            const payload = {
+                name: document.getElementById('payName').value,
+                phone: document.getElementById('payPhone').value,
+                amount: document.getElementById('payAmount').value,
+                deviceName: document.getElementById('deviceName').value,
+                macAddress: document.getElementById('macAddress').value
+            };
+
+            try {
+                const response = await fetch('/api/verify-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    payResponse.style.color = '#00c853';
+                    payResponse.innerText = data.message;
+                    paymentForm.reset();
+                } else {
+                    payResponse.style.color = '#e50914';
+                    payResponse.innerText = data.message || 'Payment submission failed.';
+                }
+            } catch (err) {
+                payResponse.style.color = '#e50914';
+                payResponse.innerText = 'Network error. Please try again.';
+            }
+        });
+    </script>
 </body>
 </html>
