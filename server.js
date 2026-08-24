@@ -13,9 +13,10 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Initialize System Settings Table
+// Initialize System Settings and ISP Tables
 async function initDb() {
   try {
+    // 1. System Settings Table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS system_settings (
         key VARCHAR(50) PRIMARY KEY,
@@ -38,6 +39,22 @@ async function initDb() {
         VALUES ('isp_auto_paused', 'false');
       `);
     }
+
+    // 2. ISP Settings Table (For direct days tracking)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS isp_settings (
+        id INT PRIMARY KEY DEFAULT 1,
+        days_left INT DEFAULT 30
+      );
+    `);
+
+    await pool.query(`
+      INSERT INTO isp_settings (id, days_left)
+      VALUES (1, 30)
+      ON CONFLICT (id) DO NOTHING;
+    `);
+
+    console.log("DB Initialization Complete!");
   } catch (err) {
     console.error("DB Initialization Error:", err.message);
   }
@@ -70,29 +87,25 @@ const requireAuthAPI = (req, res, next) => {
 
 // --- ISP System Endpoints ---
 
-// Fetch Main 5G ISP Remaining Days
+// Fetch Main ISP Days Remaining
 app.get('/api/isp-status', async (req, res) => {
   try {
-    const result = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_expiry_date'");
+    const result = await pool.query("SELECT days_left FROM isp_settings WHERE id = 1");
     if (result.rowCount === 0) {
       return res.json({ days_left: 0, is_active: false });
     }
-    const expiryDate = new Date(result.rows[0].value);
-    const now = new Date();
-    const diffTime = expiryDate - now;
-    const daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    const daysLeft = result.rows[0].days_left;
 
     res.json({
       days_left: daysLeft,
-      is_active: daysLeft > 0,
-      expiry_date: result.rows[0].value
+      is_active: daysLeft > 0
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Admin Endpoint to Edit ISP Days (0 to 30 Days) with Auto Pause/Resume logic
+// Admin Endpoint to Update ISP Days
 app.post('/api/admin/update-isp-days', requireAuthAPI, async (req, res) => {
   try {
     const { days } = req.body;
@@ -102,16 +115,14 @@ app.post('/api/admin/update-isp-days', requireAuthAPI, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Days must be an integer between 0 and 30.' });
     }
 
-    // Check current auto-pause flag
     const autoPauseRes = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_auto_paused'");
     const isAutoPaused = autoPauseRes.rowCount > 0 && autoPauseRes.rows[0].value === 'true';
 
-    // Update target ISP Expiry Date
+    // Update isp_settings table
     await pool.query(`
-      INSERT INTO system_settings (key, value)
-      VALUES ('isp_expiry_date', (CURRENT_TIMESTAMP + ($1 || ' days')::interval)::text)
-      ON CONFLICT (key) DO UPDATE
-      SET value = (CURRENT_TIMESTAMP + ($1 || ' days')::interval)::text;
+      UPDATE isp_settings 
+      SET days_left = $1 
+      WHERE id = 1;
     `, [parsedDays]);
 
     // Scenario A: Days set to 0 -> Pause all active clients
@@ -129,7 +140,7 @@ app.post('/api/admin/update-isp-days', requireAuthAPI, async (req, res) => {
         ON CONFLICT (key) DO UPDATE SET value = 'true';
       `);
     } 
-    // Scenario B: Days restored (>0) and system was previously auto-paused -> Resume clients
+    // Scenario B: Days restored (>0) -> Resume clients
     else if (parsedDays > 0 && isAutoPaused) {
       await pool.query(`
         UPDATE paid_users 
@@ -159,15 +170,13 @@ app.post('/api/admin/update-isp-days', requireAuthAPI, async (req, res) => {
 // Admin endpoint to refill Main ISP subscription by +30 Days
 app.post('/api/admin/refill-isp', requireAuthAPI, async (req, res) => {
   try {
-    // Check auto-pause state
     const autoPauseRes = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_auto_paused'");
     const isAutoPaused = autoPauseRes.rowCount > 0 && autoPauseRes.rows[0].value === 'true';
 
     await pool.query(`
-      INSERT INTO system_settings (key, value)
-      VALUES ('isp_expiry_date', (CURRENT_TIMESTAMP + INTERVAL '30 days')::text)
-      ON CONFLICT (key) DO UPDATE
-      SET value = (CURRENT_TIMESTAMP + INTERVAL '30 days')::text;
+      UPDATE isp_settings 
+      SET days_left = 30 
+      WHERE id = 1;
     `);
 
     if (isAutoPaused) {
@@ -278,8 +287,8 @@ app.post('/api/user/login', async (req, res) => {
 // Public Payment Verification Endpoint
 app.post('/api/verify-payment', async (req, res) => {
   try {
-    const ispRes = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_expiry_date'");
-    if (ispRes.rowCount > 0 && new Date(ispRes.rows[0].value) <= new Date()) {
+    const ispRes = await pool.query("SELECT days_left FROM isp_settings WHERE id = 1");
+    if (ispRes.rowCount > 0 && ispRes.rows[0].days_left <= 0) {
       return res.status(400).json({ 
         success: false, 
         message: 'Main 5G Network Link is currently expired. Payment portal is temporarily closed.' 
