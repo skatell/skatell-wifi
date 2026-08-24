@@ -258,7 +258,7 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
       phone_number, 
       mpesa_code, 
       amount_paid, 
-      days, 
+      requested_days, 
       device_name, 
       mac_address,
       status,
@@ -270,12 +270,12 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
     }
 
     const paidAmount = parseFloat(amount_paid) || 0;
-    const parsedDays = parseInt(days, 10);
+    const parsedDays = parseInt(requested_days, 10);
     const calculatedDays = (!isNaN(parsedDays) && parsedDays > 0) 
       ? parsedDays 
       : calculatePackageDays(paidAmount);
 
-    const approvedFlag = (is_approved !== undefined) ? parseInt(is_approved, 10) : 1;
+    const approvedFlag = (is_approved !== undefined && is_approved !== null) ? parseInt(is_approved, 10) : 1;
     const userStatus = status || 'Active';
 
     const queryText = `
@@ -312,7 +312,7 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
   }
 });
 
-// Manual Registration Endpoint (Creates Active Users Immediately)
+// Manual Registration Endpoint
 app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
   try {
     const { phone, name, amount, days, device_name, mac_address } = req.body;
