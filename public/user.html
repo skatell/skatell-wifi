@@ -50,7 +50,7 @@
       <tr><td class="label">Phone Number:</td><td id="uPhone"></td></tr>
       <tr><td class="label">Amount Paid:</td><td id="uAmount"></td></tr>
       <tr><td class="label">Status:</td><td id="uStatus"></td></tr>
-      <tr><td class="label">Start Date:</td><td id="uStart"></td></tr>
+      <tr><td class="label">Payment Date:</td><td id="uStart"></td></tr>
       <tr><td class="label">End Date:</td><td id="uEnd"></td></tr>
       <tr><td class="label">Days Remaining:</td><td id="uDays" style="font-weight: bold; color: #007bff;"></td></tr>
     </table>
@@ -81,9 +81,9 @@
         const data = await res.json();
         if (data.success) {
           const user = data.user;
-          document.getElementById('uName').innerText = user.user_name;
-          document.getElementById('uPhone').innerText = user.phone_number;
-          document.getElementById('uAmount').innerText = `KES ${user.amount_paid}`;
+          document.getElementById('uName').innerText = user.user_name || name;
+          document.getElementById('uPhone').innerText = user.phone_number || phone;
+          document.getElementById('uAmount').innerText = `KES ${user.amount_paid || 0}`;
           
           const isPending = user.status === 'Pending' || user.is_approved === 0 || user.is_approved === false;
           const pendingAlert = document.getElementById('pendingAlert');
@@ -96,9 +96,20 @@
             pendingAlert.style.display = 'block';
           } else {
             document.getElementById('uStatus').innerHTML = `<span class="badge ${user.status}">${user.status}</span>`;
-            document.getElementById('uStart').innerText = user.start_date ? new Date(user.start_date).toLocaleDateString() : 'N/A';
-            document.getElementById('uEnd').innerText = user.expiry_date ? new Date(user.expiry_date).toLocaleDateString() : 'N/A';
-            document.getElementById('uDays').innerText = `${user.days_left} Days`;
+            
+            // Format payment date
+            const rawPaymentDate = user.payment_date || user.start_date;
+            document.getElementById('uStart').innerText = rawPaymentDate 
+              ? (isNaN(Date.parse(rawPaymentDate)) ? rawPaymentDate : new Date(rawPaymentDate).toLocaleDateString()) 
+              : 'N/A';
+
+            // Format end date
+            const rawEndDate = user.end_date || user.expiry_date;
+            document.getElementById('uEnd').innerText = rawEndDate 
+              ? (isNaN(Date.parse(rawEndDate)) ? rawEndDate : new Date(rawEndDate).toLocaleDateString()) 
+              : 'N/A';
+
+            document.getElementById('uDays').innerText = `${user.days_left ?? 0} Days`;
             pendingAlert.style.display = 'none';
           }
 
