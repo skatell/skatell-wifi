@@ -1,171 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Wi-Fi Access Payment</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
-    .card { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; }
-    .admin-info { background: #e9ecef; border-left: 4px solid #007bff; padding: 12px; margin-bottom: 20px; text-align: left; border-radius: 4px; }
-    .admin-info p { margin: 4px 0; font-size: 14px; color: #333; }
-    input, select { width: 92%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; box-sizing: border-box; background-color: #fff; }
-    input[readonly] { background-color: #e9ecef; cursor: not-allowed; color: #495057; font-weight: bold; }
-    button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-    button:hover { background: #0056b3; }
-    .msg { margin-top: 12px; font-weight: bold; font-size: 14px; }
-    .error { color: #dc3545; }
-    .portal-link { display: inline-block; margin-top: 15px; color: #007bff; text-decoration: none; font-weight: bold; font-size: 14px; }
-    .portal-link:hover { text-decoration: underline; }
-    .support-box { margin-top: 25px; padding-top: 15px; border-top: 1px solid #eee; font-size: 13px; color: #555; }
-    .contact-btn { display: inline-block; margin: 5px 4px; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 13px; }
-    .wa-btn { background: #25D366; color: white; }
-    .call-btn { background: #007bff; color: white; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roggers' WiFi Access Portal</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background-color: #0073e6; /* Blue background matching layout */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .portal-container {
+            width: 100%;
+            max-width: 500px;
+            background-color: #0073e6;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* Top Title Banner */
+        .title-banner {
+            width: 100%;
+            background-color: #e60000; /* Red */
+            color: white;
+            text-align: center;
+            padding: 20px 10px;
+            font-size: 20px;
+            font-weight: bold;
+            text-decoration: underline;
+            border-radius: 4px;
+        }
+
+        /* Middle Action Buttons Grid (Admin & User Login) */
+        .nav-grid {
+            width: 100%;
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn-admin {
+            flex: 1;
+            background-color: #00b33c; /* Green */
+            color: white;
+            border: none;
+            padding: 25px 10px;
+            font-size: 15px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 4px;
+            text-align: center;
+            text-decoration: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: opacity 0.2s;
+        }
+
+        .btn-user {
+            flex: 1;
+            background-color: #6600cc; /* Purple */
+            color: white;
+            border: none;
+            padding: 25px 10px;
+            font-size: 15px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 4px;
+            text-align: center;
+            text-decoration: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: opacity 0.2s;
+        }
+
+        /* Payment Page Button */
+        .btn-payment {
+            width: 100%;
+            background-color: #ffcc00; /* Yellow/Gold */
+            color: #cc0000; /* Red text */
+            border: none;
+            padding: 25px 10px;
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 4px;
+            text-align: center;
+            text-decoration: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: opacity 0.2s;
+        }
+
+        .btn-admin:hover, .btn-user:hover, .btn-payment:hover {
+            opacity: 0.9;
+        }
+
+        /* Help Box */
+        .help-box {
+            width: 100%;
+            background-color: white;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .help-box p {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .help-box .phone-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 15px;
+        }
+
+        .help-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-whatsapp {
+            background-color: #25d366;
+            color: white;
+            padding: 8px 18px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .btn-call {
+            background-color: #4285f4;
+            color: white;
+            padding: 8px 18px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Footer Signature */
+        .footer-signature {
+            width: 60%;
+            background-color: #f07b3f; /* Orange */
+            color: white;
+            text-align: center;
+            padding: 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+    </style>
 </head>
 <body>
 
-  <div class="card">
-    <h2>Wi-Fi Access Payment</h2>
-    
-    <div class="admin-info">
-      <p><strong>Payment Instructions:</strong></p>
-      <p>Send M-Pesa Payment to:</p>
-      <p><strong>Phone / Till:</strong> 0143 149 490</p>
+    <div class="portal-container">
+        
+        <!-- Header Title -->
+        <div class="title-banner">
+            ROGERS' WIFI ACCESS PORTAL
+        </div>
+
+        <!-- Navigation Row: Admin Login & User Login -->
+        <div class="nav-grid">
+            <a href="/admin" class="btn-admin">ADMIN LOGIN</a>
+            <a href="/user" class="btn-user">USER LOGIN</a>
+        </div>
+
+        <!-- Payment Page Button -->
+        <a href="/login" class="btn-payment">PAYMENT PAGE</a>
+
+        <!-- Help Section -->
+        <div class="help-box">
+            <p>Need help or having trouble?</p>
+            <p>Contact administrator via WhatsApp or Call:</p>
+            <div class="phone-number">0143 149 490</div>
+            <div class="help-actions">
+                <a href="https://wa.me/254143149490" target="_blank" class="btn-whatsapp">WhatsApp</a>
+                <a href="tel:0143149490" class="btn-call">Call</a>
+            </div>
+        </div>
+
+        <!-- Footer Signature -->
+        <div class="footer-signature">
+            ROGERS
+        </div>
+
     </div>
 
-    <p style="color: #666; font-size: 14px;">Enter your details to generate your access code and activate internet.</p>
-
-    <form id="payForm" onsubmit="return false;">
-      <!-- Name Input -->
-      <input type="text" id="name" placeholder="Name (e.g. Lawi)" oninput="updateGeneratedCode()">
-      <input type="text" id="phone" placeholder="Phone Number (e.g. 0712345678)">
-      
-      <!-- Device Name & MAC Address Fields -->
-      <input type="text" id="deviceName" placeholder="Device Name (e.g. Tecno Spark 10, HP Laptop)">
-      <input type="text" id="macAddress" placeholder="Wi-Fi MAC Address (e.g. AA:BB:CC:DD:EE:FF)">
-
-      <!-- Auto-Generated Code Field -->
-      <input type="text" id="mpesaCode" placeholder="Auto-Generated Code" readonly>
-      
-      <!-- WiFi Package Selection Dropdown -->
-      <select id="amount" required>
-        <option value="" disabled selected>-- Select WiFi Package --</option>
-        <option value="25">KES 25 — 2 Days Access</option>
-        <option value="50">KES 50 — 7 Days Access</option>
-        <option value="100">KES 100 — 14 Days Access</option>
-        <option value="200">KES 200 — 30 Days Access</option>
-      </select>
-
-      <button type="button" id="payBtn" onclick="submitPayment()">Verify & Connect</button>
-    </form>
-    
-    <div id="statusMsg" class="msg"></div>
-
-    <div>
-      <a href="/user" class="portal-link">Already have an active plan? Click here to access your portal</a>
-    </div>
-
-    <div class="support-box">
-      <p style="margin-bottom: 8px;"><strong>Need help or having trouble?</strong></p>
-      <p style="margin: 4px 0;">Contact administrator via WhatsApp or Call:</p>
-      <p style="font-weight: bold; color: #333; margin: 6px 0;">0143 149 490</p>
-      
-      <div>
-        <a href="https://wa.me/254143149490" target="_blank" class="contact-btn wa-btn">WhatsApp</a>
-        <a href="tel:0143149490" class="contact-btn call-btn">Call</a>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    let currentSequence = 1;
-
-    // Fetch total registered user count from server to calculate sequence number
-    async function fetchSequence() {
-      try {
-        const res = await fetch('/api/user-count');
-        const data = await res.json();
-        if (data.count !== undefined) {
-          currentSequence = data.count + 1;
-          updateGeneratedCode();
-        }
-      } catch (err) {
-        console.error('Error fetching count:', err);
-      }
-    }
-
-    // Auto-generate transaction code based on Name + Sequence Number
-    function updateGeneratedCode() {
-      const nameInput = document.getElementById('name').value.trim();
-      const codeField = document.getElementById('mpesaCode');
-      
-      if (!nameInput) {
-        codeField.value = '';
-        return;
-      }
-
-      // Get first name in UPPERCASE (e.g. "Lawi")
-      const firstName = nameInput.split(' ')[0].toUpperCase().replace(/[^A-Z]/g, '');
-      const paddedNumber = String(currentSequence).padStart(4, '0'); // Formats: 0001, 0002...
-
-      codeField.value = `${firstName}${paddedNumber}`;
-    }
-
-    async function submitPayment() {
-      const name = document.getElementById('name').value.trim();
-      const phone = document.getElementById('phone').value.trim();
-      const deviceName = document.getElementById('deviceName').value.trim();
-      const macAddress = document.getElementById('macAddress').value.trim();
-      const mpesaCode = document.getElementById('mpesaCode').value.trim();
-      const amount = document.getElementById('amount').value;
-      const statusMsg = document.getElementById('statusMsg');
-      const payBtn = document.getElementById('payBtn');
-
-      statusMsg.className = 'msg';
-      statusMsg.innerText = '';
-
-      if (!name || !phone || !deviceName || !macAddress || !mpesaCode || !amount) {
-        statusMsg.className = 'msg error';
-        statusMsg.innerText = 'Please fill in all fields including Device Name and MAC Address.';
-        return;
-      }
-
-      payBtn.disabled = true;
-      payBtn.innerText = 'Verifying...';
-
-      try {
-        const res = await fetch('/api/verify-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone, deviceName, macAddress, mpesaCode, amount })
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          statusMsg.style.color = '#28a745';
-          statusMsg.innerText = 'Payment verified! Redirecting to portal...';
-          
-          setTimeout(() => {
-            window.location.assign(`/user?name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`);
-          }, 800);
-        } else {
-          statusMsg.className = 'msg error';
-          statusMsg.innerText = data.message || 'Payment verification failed.';
-          payBtn.disabled = false;
-          payBtn.innerText = 'Verify & Connect';
-        }
-      } catch (err) {
-        statusMsg.className = 'msg error';
-        statusMsg.innerText = 'Server error. Please try again later.';
-        payBtn.disabled = false;
-        payBtn.innerText = 'Verify & Connect';
-      }
-    }
-
-    // Load initial user count when page loads
-    window.addEventListener('DOMContentLoaded', fetchSequence);
-  </script>
 </body>
 </html>
