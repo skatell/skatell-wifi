@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roggers' WiFi Access Portal</title>
+    <title>Wi-Fi Access Payment</title>
     <style>
         * {
             box-sizing: border-box;
@@ -13,7 +13,7 @@
         }
 
         body {
-            background-color: #0073e6;
+            background-color: #ffffff;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -21,110 +21,130 @@
             padding: 20px;
         }
 
-        .portal-container {
+        .payment-container {
             width: 100%;
-            max-width: 500px;
-            background-color: #0073e6;
+            max-width: 480px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .title-banner {
-            width: 100%;
-            background-color: #e60000;
-            color: white;
-            text-align: center;
-            padding: 20px 10px;
-            font-size: 20px;
-            font-weight: bold;
-            text-decoration: underline;
-            border-radius: 4px;
-        }
-
-        .nav-grid {
-            width: 100%;
-            display: flex;
             gap: 15px;
+            align-items: center;
         }
 
-        .btn-admin {
-            flex: 1;
-            background-color: #00b33c;
-            color: white;
-            border: none;
-            padding: 25px 10px;
-            font-size: 15px;
+        h2 {
+            font-size: 24px;
             font-weight: bold;
-            text-transform: uppercase;
-            cursor: pointer;
-            border-radius: 4px;
+            color: #000;
+            margin-bottom: 10px;
             text-align: center;
-            text-decoration: none;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: opacity 0.2s;
         }
 
-        .btn-user {
-            flex: 1;
-            background-color: #6600cc;
-            color: white;
-            border: none;
-            padding: 25px 10px;
-            font-size: 15px;
-            font-weight: bold;
-            text-transform: uppercase;
-            cursor: pointer;
-            border-radius: 4px;
-            text-align: center;
-            text-decoration: none;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: opacity 0.2s;
-        }
-
-        .btn-payment {
+        /* Payment Instructions Box */
+        .instructions-box {
             width: 100%;
-            background-color: #ffcc00;
-            color: #cc0000;
+            background-color: #e6ebf5;
+            border-left: 5px solid #0056b3;
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .instructions-box p {
+            font-size: 14px;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .instructions-box .highlight {
+            font-weight: bold;
+            color: #000;
+        }
+
+        .subtitle-text {
+            font-size: 13px;
+            color: #555;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        /* Form Inputs */
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+            background-color: #fff;
+            color: #333;
+            outline: none;
+        }
+
+        input::placeholder {
+            color: #888;
+        }
+
+        input:focus, select:focus {
+            border-color: #0056b3;
+        }
+
+        /* Submit Button */
+        .btn-verify {
+            width: 100%;
+            background-color: #2b70ff;
+            color: white;
             border: none;
-            padding: 25px 10px;
+            padding: 14px;
             font-size: 16px;
             font-weight: bold;
-            text-transform: uppercase;
+            border-radius: 6px;
             cursor: pointer;
-            border-radius: 4px;
             text-align: center;
-            text-decoration: none;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: opacity 0.2s;
+            transition: background 0.2s;
         }
 
-        .btn-admin:hover, .btn-user:hover, .btn-payment:hover {
-            opacity: 0.9;
+        .btn-verify:hover {
+            background-color: #1a56db;
         }
 
+        /* Portal Link */
+        .portal-link {
+            font-size: 13px;
+            color: #0056b3;
+            text-decoration: none;
+            text-align: center;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
+        .portal-link:hover {
+            text-decoration: underline;
+        }
+
+        hr {
+            width: 100%;
+            border: none;
+            border-top: 1px solid #eee;
+            margin: 10px 0;
+        }
+
+        /* Help Section */
         .help-box {
             width: 100%;
             background-color: white;
             color: #333;
             text-align: center;
-            padding: 20px;
-            border-radius: 4px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 10px;
         }
 
         .help-box p {
-            font-size: 14px;
-            margin-bottom: 5px;
+            font-size: 13px;
+            margin-bottom: 3px;
         }
 
         .help-box .phone-number {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             color: #000;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
 
         .help-actions {
@@ -136,51 +156,68 @@
         .btn-whatsapp {
             background-color: #25d366;
             color: white;
-            padding: 8px 18px;
+            padding: 6px 16px;
             border-radius: 4px;
             text-decoration: none;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .btn-call {
             background-color: #4285f4;
             color: white;
-            padding: 8px 18px;
+            padding: 6px 16px;
             border-radius: 4px;
             text-decoration: none;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
         }
 
-        .footer-signature {
-            width: 60%;
-            background-color: #f07b3f;
-            color: white;
-            text-align: center;
-            padding: 12px;
+        .response-msg {
+            font-size: 14px;
             font-weight: bold;
-            border-radius: 4px;
-            letter-spacing: 1px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
 
-    <div class="portal-container">
-        
-        <div class="title-banner">
-            ROGERS' WIFI ACCESS PORTAL
+    <div class="payment-container">
+        <h2>Wi-Fi Access Payment</h2>
+
+        <!-- Instructions -->
+        <div class="instructions-box">
+            <p><span class="highlight">Payment Instructions:</span><br>
+            Send M-Pesa Payment to:<br>
+            <span class="highlight">Phone / Till:</span> 0143 149 490</p>
         </div>
 
-        <div class="nav-grid">
-            <a href="/admin-login" class="btn-admin">ADMIN LOGIN</a>
-            <a href="/user" class="btn-user">USER LOGIN</a>
-        </div>
+        <div class="subtitle-text">Enter your details below. Your verification code will be automatically generated.</div>
 
-        <a href="/login" class="btn-payment">PAYMENT PAGE</a>
+        <!-- Payment Form -->
+        <form id="paymentForm" style="width: 100%; display: flex; flex-direction: column; gap: 12px;">
+            <input type="text" id="name" placeholder="Name (e.g. Lawi)" required>
+            <input type="text" id="phone" placeholder="Phone Number (e.g. 0712345678)" required>
+            <input type="text" id="deviceName" placeholder="Device Name (e.g. Tecno Spark 10, HP Laptop)" required>
+            <input type="text" id="macAddress" placeholder="Wi-Fi MAC Address (e.g. AA:BB:CC:DD:EE:FF)" required>
+            
+            <select id="package" required>
+                <option value="" disabled selected>-- Select WiFi Package --</option>
+                <option value="50">2 Days - Ksh 50</option>
+                <option value="100">10 Days - Ksh 100</option>
+                <option value="200">30 Days - Ksh 200</option>
+            </select>
 
+            <button type="submit" class="btn-verify">Verify & Connect</button>
+            <div id="responseMsg" class="response-msg"></div>
+        </form>
+
+        <a href="/user" class="portal-link">Already have an active plan? Click here to access your portal</a>
+
+        <hr>
+
+        <!-- Help Section -->
         <div class="help-box">
             <p>Need help or having trouble?</p>
             <p>Contact administrator via WhatsApp or Call:</p>
@@ -190,12 +227,46 @@
                 <a href="tel:0143149490" class="btn-call">Call</a>
             </div>
         </div>
-
-        <div class="footer-signature">
-            ROGERS
-        </div>
-
     </div>
 
+    <script>
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const deviceName = document.getElementById('deviceName').value.trim();
+            const macAddress = document.getElementById('macAddress').value.trim();
+            const amount = document.getElementById('package').value;
+            const msgDiv = document.getElementById('responseMsg');
+
+            msgDiv.style.color = '#333';
+            msgDiv.innerText = 'Submitting details and generating access code...';
+
+            try {
+                const res = await fetch('/api/verify-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, phone, deviceName, macAddress, amount })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    msgDiv.style.color = '#28a745';
+                    msgDiv.innerText = data.message;
+                    document.getElementById('paymentForm').reset();
+                    
+                    setTimeout(() => {
+                        window.location.href = '/user';
+                    }, 4000);
+                } else {
+                    msgDiv.style.color = '#dc3545';
+                    msgDiv.innerText = data.message || 'Verification failed.';
+                }
+            } catch (err) {
+                msgDiv.style.color = '#dc3545';
+                msgDiv.innerText = 'Server connection failed.';
+            }
+        });
+    </script>
 </body>
 </html>
