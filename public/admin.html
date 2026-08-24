@@ -98,16 +98,26 @@
       display: none;
     }
 
-    /* Sidebar Navigation */
+    /* Sidebar Navigation - Collapsible on both Desktop & Mobile */
     .sidebar {
+      position: fixed;
+      left: -250px;
+      top: 0;
       width: 250px;
+      height: 100%;
       background: var(--sidebar-bg);
       color: var(--sidebar-text);
       display: flex;
       flex-direction: column;
       padding: 20px 0;
       flex-shrink: 0;
+      z-index: 9999;
+      box-shadow: 4px 0 15px rgba(0,0,0,0.5);
       transition: transform 0.3s ease;
+    }
+
+    .sidebar.mobile-open {
+      transform: translateX(250px);
     }
 
     .sidebar-brand {
@@ -160,40 +170,18 @@
       font-weight: bold;
     }
 
-    /* Mobile Hamburger Menu Button (Hidden on Desktop) */
+    /* Menu Toggle Button */
     .mobile-menu-btn {
-      display: none;
+      display: inline-block;
       background: #007bff;
       color: white;
       border: none;
       padding: 8px 12px;
-      font-size: 18px;
+      font-size: 16px;
       border-radius: 4px;
       cursor: pointer;
       margin-bottom: 15px;
-    }
-
-    /* Responsive adjustments for mobile screens */
-    @media screen and (max-width: 768px) {
-      .sidebar {
-        position: fixed;
-        left: -250px;
-        top: 0;
-        height: 100%;
-        z-index: 9999;
-        box-shadow: 4px 0 15px rgba(0,0,0,0.5);
-      }
-      .sidebar.mobile-open {
-        transform: translateX(250px);
-      }
-      .mobile-menu-btn {
-        display: inline-block;
-      }
-      .main-content {
-        padding: 15px;
-        width: 100%;
-        box-sizing: border-box;
-      }
+      font-weight: bold;
     }
 
     /* Main Content Area */
@@ -201,6 +189,8 @@
       flex: 1;
       padding: 20px;
       overflow-y: auto;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .view-section {
@@ -248,6 +238,20 @@
     .btn-edit { background: #0284c7; color: white; }
     .btn-delete { background: #dc3545; color: white; }
     .btn-pdf { background: #10b981; color: white; padding: 6px 12px; font-size: 12px; }
+
+    /* Custom Synced Top Scrollbar styling */
+    .top-scrollbar-container {
+      width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      height: 14px;
+      margin-bottom: 8px;
+      background: rgba(0,0,0,0.05);
+      border-radius: 4px;
+    }
+    .top-scrollbar-dummy {
+      height: 1px;
+    }
 
     /* Forms */
     .form-group { display: flex; flex-direction: column; gap: 10px; max-width: 500px; }
@@ -358,7 +362,7 @@
 </head>
 <body>
 
-  <!-- Admin Login Overlay (Shows up automatically if not authenticated) -->
+  <!-- Admin Login Overlay -->
   <div id="adminLoginOverlay" style="display: none;">
     <div class="admin-login-box">
       <h2>Admin Sign In</h2>
@@ -371,7 +375,7 @@
     </div>
   </div>
 
-  <!-- Left Sidebar Navigation -->
+  <!-- Left Sidebar Navigation (Hidden by default, toggled via button) -->
   <div class="sidebar">
     <div class="sidebar-brand">Wi-Fi Control Panel</div>
     <ul class="nav-menu">
@@ -398,15 +402,13 @@
   <!-- Main Content Area -->
   <div class="main-content">
     
-    <!-- Mobile Hamburger Toggle Button -->
+    <!-- Hamburger Toggle Button -->
     <button class="mobile-menu-btn" onclick="toggleMobileSidebar()">☰ Menu</button>
     
     <!-- ISP Top Container -->
     <div class="isp-widget-container">
       <div style="display: flex; flex-direction: column; align-items: flex-end; width: 100%; margin: 0 auto;">
         <div style="display: flex; align-items: center; gap: 15px; width: 100%; justify-content: flex-end;">
-          
-          <!-- Interactive ISP Days Box -->
           <div id="ispDaysBox" class="isp-days-box" onclick="editIspDays()" title="Click to edit remaining days">
             <div style="font-size: 18px; line-height: 1;"><span id="ispDaysCount">30</span> DAYS</div>
             <div style="font-size: 10px; letter-spacing: 1px; color: #333; margin-top: 2px;">REMAINING</div>
@@ -414,7 +416,6 @@
           </div>
         </div>
 
-        <!-- Timeline Progress Bar Component -->
         <div class="isp-progress-wrapper" style="width: 100%;">
           <div class="isp-progress-bar">
             <div class="bar-segment red-segment"></div>
@@ -429,7 +430,6 @@
           </div>
         </div>
 
-        <!-- Quick Action Controls -->
         <div style="margin-top: 8px; display: flex; gap: 8px;">
           <button onclick="setIspDays(30)" style="background: #2e1065; color: #fff; border: none; padding: 6px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 11px;">
             🔄 Refill 30 Days
@@ -448,8 +448,14 @@
           <h3>Active Subscriptions</h3>
           <button class="btn btn-pdf" onclick="exportPDF()">Export PDF List</button>
         </div>
-        <div style="overflow-x: auto;" id="pdfContent">
-          <table>
+
+        <!-- Sticky Top Horizontal Scrollbar for Easy Access -->
+        <div class="top-scrollbar-container" id="topScrollbar">
+          <div class="top-scrollbar-dummy" id="topScrollDummy"></div>
+        </div>
+
+        <div style="overflow-x: auto;" id="pdfContent" id="tableScrollContainer">
+          <table id="activeTableElement">
             <thead>
               <tr>
                 <th>ID</th>
@@ -639,12 +645,10 @@
       'x-admin-token': token || ''
     };
 
-    // Check if token exists, if not show login popup instead of redirecting
     if (!token) {
       document.getElementById('adminLoginOverlay').style.display = 'flex';
     }
 
-    // Handle inline login submit
     async function handleAdminLogin(e) {
       e.preventDefault();
       const username = document.getElementById('adminUser').value.trim();
@@ -675,7 +679,7 @@
       }
     }
 
-    // Navigation Switcher & Mobile Menu Toggle
+    // Toggle Sidebar visibility for both mobile and desktop
     function toggleMobileSidebar() {
       const sidebar = document.querySelector('.sidebar');
       sidebar.classList.toggle('mobile-open');
@@ -688,19 +692,14 @@
       document.getElementById(tabId).classList.add('active');
       if (element) element.classList.add('active');
 
-      // Hide sidebar on mobile after selecting an option
-      if (window.innerWidth <= 768) {
-        document.querySelector('.sidebar').classList.remove('mobile-open');
-      }
+      document.querySelector('.sidebar').classList.remove('mobile-open');
     }
 
-    // Theme Switcher Logic
     function changeTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme);
       localStorage.setItem('adminTheme', theme);
     }
 
-    // Load saved theme
     const savedTheme = localStorage.getItem('adminTheme') || 'light';
     changeTheme(savedTheme);
     document.getElementById('themeSelect').value = savedTheme;
@@ -710,7 +709,6 @@
       document.getElementById('adminLoginOverlay').style.display = 'flex';
     }
 
-    // ISP Widget Logic & Interactive Controls
     async function updateIspWidget() {
       try {
         const res = await fetch('/api/isp-status');
@@ -734,11 +732,9 @@
       }
     }
 
-    // Prompt Admin to enter any custom day count (0 to 30)
     async function editIspDays() {
       const currentDays = document.getElementById('ispDaysCount')?.innerText || "0";
       const input = prompt("Enter remaining ISP days (0 to 30):", currentDays);
-      
       if (input === null) return;
       
       const days = parseInt(input.trim(), 10);
@@ -746,11 +742,9 @@
         alert("Please enter a valid number between 0 and 30.");
         return;
       }
-
       await setIspDays(days);
     }
 
-    // Send request to update ISP Days
     async function setIspDays(days) {
       try {
         const res = await fetch('/api/admin/update-isp-days', {
@@ -758,7 +752,6 @@
           headers,
           body: JSON.stringify({ days })
         });
-        
         const data = await res.json();
         if (data.success) {
           refreshAll();
@@ -770,10 +763,8 @@
       }
     }
 
-    // Export PDF Feature
     function exportPDF() {
       const element = document.getElementById('pdfContent');
-      
       const style = document.createElement('style');
       style.id = 'hide-actions';
       style.innerHTML = '.no-print, tbody button { display: none !important; }';
@@ -799,7 +790,6 @@
         const data = await res.json();
         
         document.getElementById('pendingCount').innerText = data.length;
-
         const tbody = document.getElementById('pendingTable');
         if (data.length === 0) {
           tbody.innerHTML = '<tr><td colspan="9">No pending requests.</td></tr>';
@@ -865,10 +855,32 @@
             </tr>
           `;
         }).join('');
+
+        // Sync widths for custom top scrollbar after content loads
+        setTimeout(syncScrollbars, 100);
       } catch (err) { console.error(err); }
     }
 
-    // Modal Control Functions
+    // Synchronize Top Scrollbar with Main Table Scroll
+    function syncScrollbars() {
+      const topScroll = document.getElementById('topScrollbar');
+      const topDummy = document.getElementById('topScrollDummy');
+      const tableContainer = document.getElementById('pdfContent');
+      const tableElem = document.getElementById('activeTableElement');
+
+      if (topScroll && tableContainer && tableElem) {
+        topDummy.style.width = tableElem.scrollWidth + 'px';
+
+        topScroll.onscroll = function() {
+          tableContainer.scrollLeft = topScroll.scrollLeft;
+        };
+        tableContainer.onscroll = function() {
+          topScroll.scrollLeft = tableContainer.scrollLeft;
+        };
+      }
+    }
+    window.addEventListener('resize', syncScrollbars);
+
     function openEditModal(user) {
       document.getElementById('edit_id').value = user.id;
       document.getElementById('edit_user_name').value = user.user_name || '';
@@ -879,7 +891,6 @@
       document.getElementById('edit_device_name').value = user.device_name || '';
       document.getElementById('edit_mac_address').value = user.mac_address || '';
       document.getElementById('edit_status').value = user.status || 'Active';
-
       document.getElementById('editModal').style.display = 'block';
     }
 
@@ -906,7 +917,6 @@
           headers,
           body: JSON.stringify(payload)
         });
-
         const data = await res.json();
         if (data.success) {
           alert(data.message || 'User updated successfully!');
@@ -977,14 +987,12 @@
           headers, 
           body: JSON.stringify(body) 
         });
-
         const data = await res.json();
 
         if (res.ok) {
           alert(data.message || 'User registered successfully!');
           e.target.reset();
           refreshAll();
-          
           const dashboardTab = document.querySelector('.nav-item[onclick*="dashboard"]');
           switchTab('dashboard', dashboardTab);
         } else {
@@ -1020,7 +1028,7 @@
     }
 
     refreshAll();
-    setInterval(refreshAll, 10000); // Auto-refresh data every 10 seconds
+    setInterval(refreshAll, 10000);
   </script>
 </body>
 </html>
