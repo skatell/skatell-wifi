@@ -249,9 +249,11 @@ app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
   }
 });
 
-// Full Member Details Edit Endpoint
+// Fully Completed & Fixed Member Details Edit Endpoint
 app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
   try {
+    console.log("Admin Edit Payload received:", req.body);
+
     const { 
       id, 
       user_name, 
@@ -269,8 +271,10 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
       return res.status(400).json({ success: false, message: 'User ID is required.' });
     }
 
+    const userId = parseInt(id, 10);
     const paidAmount = parseFloat(amount_paid) || 0;
     const parsedDays = parseInt(requested_days, 10);
+    
     const calculatedDays = (!isNaN(parsedDays) && parsedDays > 0) 
       ? parsedDays 
       : calculatePackageDays(paidAmount);
@@ -290,10 +294,11 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
           status = $8,
           is_approved = $9,
           expiry_date = COALESCE(start_date, CURRENT_TIMESTAMP) + make_interval(days => $5::int)
-      WHERE id = $10;
+      WHERE id = $10
+      RETURNING *;
     `;
 
-    await pool.query(queryText, [
+    const result = await pool.query(queryText, [
       user_name ? user_name.trim() : '',
       phone_number ? phone_number.trim() : '',
       mpesa_code ? mpesa_code.trim().toUpperCase() : '',
@@ -303,12 +308,30 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
       mac_address ? mac_address.trim().toUpperCase() : '',
       userStatus,
       approvedFlag,
-      id
+      userId
     ]);
 
-    res.json({ success: true, message: 'All member details updated successfully.' });
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Member ID not found in database.' });
+    }
+
+    return res.json({ 
+      success: true, 
+      message: 'All member details updated successfully!', 
+      user: result.rows[0] 
+    });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Failed to update user:", err.message);
+    
+    // Handle unique constraint conflict (e.g., duplicated phone or M-Pesa code)
+    if (err.code === '23505') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Phone number or M-Pesa code already exists for another user.' 
+      });
+    }
+
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
