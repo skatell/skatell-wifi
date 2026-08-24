@@ -243,21 +243,23 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
   }
 });
 
+// FIXED MANUAL REGISTER ENDPOINT
 app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
   try {
     const { phone, name, amount, days } = req.body;
     const amountNum = parseFloat(amount) || 200;
-    const daysNum = days ? parseInt(days) : Math.max(1, Math.round((amountNum / 200) * 30));
+    const daysNum = days ? parseInt(days, 10) : Math.max(1, Math.round((amountNum / 200) * 30));
 
     const queryText = `
       INSERT INTO paid_users (phone_number, user_name, amount_paid, mpesa_code, status, is_approved, requested_days, start_date, expiry_date, is_paused, remaining_seconds)
-      VALUES ($1, $2, $3, 'MANUAL_REG', 'Active', 1, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL, false, 0)
+      VALUES ($1, $2, $3, 'MANUAL_REG', 'Active', 1, $4::INTEGER, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($4 || ' days')::INTERVAL, false, 0)
       ON CONFLICT (phone_number) DO UPDATE SET
         user_name = EXCLUDED.user_name,
         amount_paid = EXCLUDED.amount_paid,
         mpesa_code = 'MANUAL_REG',
         status = 'Active',
         is_approved = 1,
+        requested_days = $4::INTEGER,
         is_paused = false,
         remaining_seconds = 0,
         start_date = CURRENT_TIMESTAMP,
