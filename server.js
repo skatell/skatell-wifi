@@ -197,7 +197,7 @@ app.post('/api/admin/refill-isp', requireAuthAPI, async (req, res) => {
 
 // Page Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/pay', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html'))); // Fixed to load index.html correctly
+app.get('/pay', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/admin-login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
@@ -276,7 +276,6 @@ app.post('/api/user/login', async (req, res) => {
   }
 });
 
-// Public Payment Verification Endpoint with Auto-Generated Code
 app.post('/api/verify-payment', async (req, res) => {
   try {
     const ispRes = await pool.query("SELECT days_left FROM isp_settings WHERE id = 1");
@@ -307,7 +306,6 @@ app.post('/api/verify-payment', async (req, res) => {
 
     const calculatedDays = calculatePackageDays(paidAmount);
 
-    // Automatically generate a unique code for the user
     let mpesaCode = 'AUTO_' + Math.random().toString(36).substring(2, 8).toUpperCase();
     let codeExists = true;
     while (codeExists) {
