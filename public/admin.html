@@ -438,6 +438,16 @@
     </div>
     <!-- Active Members Section (Main Dashboard) -->
     <div id="dashboard" class="view-section active">
+      
+      <!-- Total Revenue Summary Card -->
+      <div class="card" style="margin-bottom: 15px; padding: 15px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <h4 style="margin: 0; font-size: 14px; color: var(--text-color); opacity: 0.8;">Total Revenue (Active Members)</h4>
+          <h2 id="totalRevenueDisplay" style="margin: 5px 0 0 0; color: #28a745; font-size: 24px;">KES 0</h2>
+        </div>
+        <div style="font-size: 28px;">💰</div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <h3>Active Subscriptions</h3>
@@ -795,6 +805,14 @@
         if (res.status === 401) return logout();
         const data = await res.json();
         
+        // --- Calculate Total Money Generated from Active Members ---
+        let totalRevenue = 0;
+        data.forEach(u => {
+          totalRevenue += parseFloat(u.amount_paid) || 0;
+        });
+        document.getElementById('totalRevenueDisplay').innerText = `KES ${totalRevenue.toLocaleString()}`;
+        // -----------------------------------------------------------
+
         const tbody = document.getElementById('usersTable');
         if (data.length === 0) {
           tbody.innerHTML = '<tr><td colspan="12">No active subscriptions.</td></tr>';
