@@ -256,7 +256,7 @@
 
             <button type="button" class="btn-payment" id="openPayBtn">PAYMENT PAGE</button>
             
-            <!-- Added Renewal Page Button -->
+            <!-- Renewal Page Button -->
             <button onclick="openRenewalModal()" style="background-color: #e67e22; color: white; padding: 16px; width: 100%; border: none; border-radius: 4px; font-weight: bold; font-size: 16px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">RENEWAL PAGE</button>
 
             <div class="help-box">
@@ -272,7 +272,7 @@
             <div class="btn-brand">ROGERS</div>
         </div>
 
-        <!-- Hidden Payment Section (Matches your detailed style layout) -->
+        <!-- Hidden Payment Section -->
         <div id="payment-section">
             <div class="payment-instructions">
                 <h3>Payment Instructions:</h3>
@@ -323,14 +323,17 @@
         
         <div id="renewalResult" style="margin-bottom: 15px; font-weight: bold; font-size: 14px;"></div>
 
-        <div id="plansContainer" style="display:none; text-align:left; margin-bottom:15px; background:#f9f9f9; padding:10px; border-radius:5px;">
-          <p style="margin: 0 0 5px 0; color: #27ae60;"><strong>Welcome back, <span id="rUserName"></span>! Select a plan:</strong></p>
-          <ul style="margin:0; padding-left:20px; font-size:13px;">
-            <li>KES 50 = 2 Days</li>
-            <li>KES 100 = 10 Days</li>
-            <li>KES 200 = 30 Days</li>
-          </ul>
-          <button onclick="window.location.href='/pay'" style="background:#27ae60; color:white; border:none; padding:8px 12px; border-radius:4px; margin-top:10px; cursor:pointer; width:100%;">Proceed to Payment</button>
+        <!-- Dynamic Plans Selection Container for Automatic Renewal -->
+        <div id="plansContainer" style="display:none; text-align:left; margin-bottom:15px; background:#f9f9f9; padding:12px; border-radius:5px;">
+          <p style="margin: 0 0 8px 0; color: #27ae60; font-size: 13px;"><strong>Welcome back, <span id="rUserName"></span>! Select your package:</strong></p>
+          <div class="form-group" style="margin-bottom: 8px;">
+            <select id="renewalDaysSelect" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                <option value="30">KES 200 - 30 Days (Full Month)</option>
+                <option value="10">KES 100 - 10 Days</option>
+                <option value="2">KES 50 - 2 Days</option>
+            </select>
+          </div>
+          <button onclick="executeRenewal()" style="background:#27ae60; color:white; border:none; padding:10px 12px; border-radius:4px; margin-top:5px; cursor:pointer; width:100%; font-weight: bold;">Confirm & Auto-Renew</button>
         </div>
 
         <button onclick="checkRenewalPhone()" id="checkBtn" style="background:#3498db; color:white; border:none; padding:10px 15px; border-radius:4px; cursor:pointer; width:100%;">Check Status</button>
@@ -447,6 +450,40 @@
             resultDiv.style.color = 'red';
             resultDiv.innerText = 'Server error. Try again later.';
           }
+        }
+
+        // Trigger the automatic renewal execution endpoint
+        async function executeRenewal() {
+            const phone = document.getElementById('renewalPhone').value.trim();
+            const days = document.getElementById('renewalDaysSelect').value;
+            const resultDiv = document.getElementById('renewalResult');
+
+            resultDiv.style.color = '#555';
+            resultDiv.innerText = 'Processing automatic renewal...';
+
+            try {
+                const response = await fetch('/api/user/renew', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone, days })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.style.color = '#00c853';
+                    resultDiv.innerText = data.message;
+                    document.getElementById('plansContainer').style.display = 'none';
+                    setTimeout(() => {
+                        closeRenewalModal();
+                    }, 3000);
+                } else {
+                    resultDiv.style.color = '#e50914';
+                    resultDiv.innerText = data.message || 'Renewal failed.';
+                }
+            } catch (err) {
+                resultDiv.style.color = '#e50914';
+                resultDiv.innerText = 'Network error during renewal.';
+            }
         }
     </script>
 </body>
