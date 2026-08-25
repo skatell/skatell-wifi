@@ -454,7 +454,7 @@
           <div class="top-scrollbar-dummy" id="topScrollDummy"></div>
         </div>
 
-        <div style="overflow-x: auto;" id="pdfContent" id="tableScrollContainer">
+        <div style="overflow-x: auto;" id="pdfContent">
           <table id="activeTableElement">
             <thead>
               <tr>
@@ -768,14 +768,18 @@
       const style = document.createElement('style');
       style.id = 'hide-actions';
       style.innerHTML = '.no-print, tbody button { display: none !important; }';
-      document.head.appendChild(style);
+      document.getElementById('pdfContent').appendChild(style);
 
       const opt = {
-        margin:     0.5,
-        filename:    'active_members_report.pdf',
-        image:       { type: 'jpeg', quality: 0.98 },
-        html2canvas:   { scale: 2 },
-        jsPDF:       { unit: 'in', format: 'letter', orientation: 'landscape' }
+        margin:       0.5,
+        filename:     'active_members_report.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { 
+          scale: 3,           // Increased to 3 for sharp, high-resolution rendering
+          useCORS: true,
+          letterRendering: true
+        },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
       };
 
       html2pdf().set(opt).from(element).save().then(() => {
@@ -958,77 +962,6 @@
       await fetch('/api/admin/approve-user', { method: 'POST', headers, body: JSON.stringify({ id }) });
       refreshAll();
     }
-
-    async function togglePause(id) {
-      await fetch('/api/admin/toggle-pause', { method: 'POST', headers, body: JSON.stringify({ id }) });
-      refreshAll();
-    }
-
-    async function deleteUser(id) {
-      if (!confirm('Are you sure you want to delete this record?')) return;
-      await fetch(`/api/admin/delete/${id}`, { method: 'DELETE', headers });
-      refreshAll();
-    }
-
-    async function handleManualRegister(e) {
-      e.preventDefault();
-      const body = {
-        name: document.getElementById('regName').value.trim(),
-        phone: document.getElementById('regPhone').value.trim(),
-        device_name: document.getElementById('regDevice').value.trim(),
-        mac_address: document.getElementById('regMac').value.trim(),
-        amount: parseFloat(document.getElementById('regAmount').value) || 0,
-        days: parseInt(document.getElementById('regDays').value, 10) || 1
-      };
-
-      try {
-        const res = await fetch('/api/admin/register', { 
-          method: 'POST', 
-          headers, 
-          body: JSON.stringify(body) 
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          alert(data.message || 'User registered successfully!');
-          e.target.reset();
-          refreshAll();
-          const dashboardTab = document.querySelector('.nav-item[onclick*="dashboard"]');
-          switchTab('dashboard', dashboardTab);
-        } else {
-          alert(data.error || 'Registration failed');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Network error while registering user.');
-      }
-    }
-
-    async function handleBlacklist(e) {
-      e.preventDefault();
-      const phone = document.getElementById('blackPhone').value.trim();
-      const reason = document.getElementById('blackReason').value.trim();
-      await fetch('/api/admin/blacklist', { method: 'POST', headers, body: JSON.stringify({ phone, reason }) });
-      e.target.reset();
-      loadBlacklist();
-    }
-
-    async function unblockPhone(phone) {
-      await fetch(`/api/admin/blacklist/${encodeURIComponent(phone)}`, { method: 'DELETE', headers });
-      loadBlacklist();
-    }
-
-    function refreshAll() {
-      if (token) {
-        loadUsers();
-        loadPending();
-        loadBlacklist();
-        updateIspWidget();
-      }
-    }
-
-    refreshAll();
-    setInterval(refreshAll, 10000);
   </script>
 </body>
 </html>
