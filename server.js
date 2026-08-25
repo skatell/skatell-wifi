@@ -259,12 +259,13 @@ app.post('/api/user/login', async (req, res) => {
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
         WHEN is_paused THEN 'Paused'
-        WHEN CURRENT_TIMESTAMP > expiry_date THEN 'Expired'
+        WHEN expiry_date IS NULL OR CURRENT_TIMESTAMP >= expiry_date OR (expiry_date::date - CURRENT_DATE) <= 0 THEN 'Expired'
         ELSE 'Active'
       END AS status,
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 0
-        WHEN is_paused THEN CEIL(remaining_seconds / 86400.0)
+        WHEN is_paused THEN FLOOR(remaining_seconds / 86400.0)
+        WHEN expiry_date IS NULL OR CURRENT_TIMESTAMP >= expiry_date THEN 0
         ELSE GREATEST(0, (expiry_date::date - CURRENT_DATE))
       END AS days_left
       FROM paid_users 
@@ -323,6 +324,7 @@ app.post('/api/verify-payment', async (req, res) => {
       }
     }
 
+    // Upsert renewal/payment so it clears any old expiry and resets start time to now for pending approval
     const queryText = `
       INSERT INTO paid_users (
         user_name, phone_number, amount_paid, mpesa_code, status, is_approved, 
@@ -362,12 +364,13 @@ app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
         WHEN is_paused THEN 'Paused'
-        WHEN CURRENT_TIMESTAMP > expiry_date THEN 'Expired'
+        WHEN expiry_date IS NULL OR CURRENT_TIMESTAMP >= expiry_date OR (expiry_date::date - CURRENT_DATE) <= 0 THEN 'Expired'
         ELSE 'Active'
       END AS status,
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 0
-        WHEN is_paused THEN CEIL(remaining_seconds / 86400.0)
+        WHEN is_paused THEN FLOOR(remaining_seconds / 86400.0)
+        WHEN expiry_date IS NULL OR CURRENT_TIMESTAMP >= expiry_date THEN 0
         ELSE GREATEST(0, (expiry_date::date - CURRENT_DATE))
       END AS days_left
       FROM paid_users 
@@ -412,6 +415,7 @@ app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
       SET is_approved = 1,
           status = 'Active',
           requested_days = $1,
+          start_date = CURRENT_TIMESTAMP,
           expiry_date = CURRENT_TIMESTAMP + make_interval(days => $1::int)
       WHERE id = $2;
     `;
@@ -438,7 +442,8 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
       UPDATE paid_users 
       SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4, requested_days = $5,
           device_name = $6, mac_address = $7, status = $8, is_approved = $9,
-          expiry_date = COALESCE(start_date, CURRENT_TIMESTAMP) + make_interval(days => $5::int)
+          start_date = CURRENT_TIMESTAMP,
+          expiry_date = CURRENT_TIMESTAMP + make_interval(days => $5::int)
       WHERE id = $10
       RETURNING *;
     `;
