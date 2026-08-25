@@ -394,6 +394,9 @@
       <li class="nav-item" onclick="switchTab('settings', this)">
         <span>Settings Menu</span>
       </li>
+      <li class="nav-item" onclick="switchTab('systemGenerator', this)">
+        <span>System Generator</span>
+      </li>
     </ul>
     <button class="logout-btn" onclick="logout()">Logout</button>
   </div>
@@ -578,6 +581,34 @@
           <input type="password" id="newPassword" placeholder="New Password" required>
           <button type="submit">Update Credentials</button>
         </form>
+      </div>
+    </div>
+    <!-- System Generator View -->
+    <div id="systemGenerator" class="view-section">
+      <div class="card">
+        <div class="card-header">
+          <h3>Generate New Wi-Fi System</h3>
+        </div>
+        <p style="font-size: 13px; opacity: 0.8; margin-bottom: 15px;">
+          Create a fully functional, independent portal instance for your friend or client.
+        </p>
+        <form onsubmit="handleGenerateTenant(event)" class="form-group">
+          <input type="text" id="tenantBusinessName" placeholder="Business Name (e.g. City Lounge Wi-Fi)" required>
+          <input type="text" id="tenantSlug" placeholder="URL Slug/Subdomain (e.g. citylounge)" required>
+          <input type="text" id="tenantAdminUser" placeholder="Admin Username" required>
+          <input type="password" id="tenantAdminPass" placeholder="Admin Password" required>
+          <button type="submit" style="background: #10b981;">Generate System Link</button>
+        </form>
+
+        <!-- Result Box (Hidden until generated) -->
+        <div id="tenantResultBox" style="display: none; margin-top: 20px; padding: 15px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px;">
+          <h4 style="margin: 0 0 8px 0; color: #10b981;">System Generated Successfully! 🎉</h4>
+          <p style="font-size: 12px; margin: 0 0 10px 0;">Unique Link:</p>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="generatedLinkOutput" readonly style="flex: 1; padding: 6px; font-size: 12px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-color); border-radius: 4px;">
+            <button type="button" onclick="copyTenantLink()" style="background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;">Copy</button>
+          </div>
+        </div>
       </div>
     </div>
     <!-- Edit User Modal -->
@@ -989,6 +1020,47 @@
       await fetch(`/api/admin/blacklist/${encodeURIComponent(phone)}`, { method: 'DELETE', headers });
       loadBlacklist();
     }
+
+    // --- System Generator Handlers ---
+    async function handleGenerateTenant(e) {
+      e.preventDefault();
+      const payload = {
+        business_name: document.getElementById('tenantBusinessName').value.trim(),
+        slug: document.getElementById('tenantSlug').value.trim(),
+        admin_username: document.getElementById('tenantAdminUser').value.trim(),
+        admin_password: document.getElementById('tenantAdminPass').value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/superadmin/create-tenant', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          document.getElementById('generatedLinkOutput').value = data.link;
+          document.getElementById('tenantResultBox').style.display = 'block';
+          alert(data.message || 'Wi-Fi system generated successfully!');
+        } else {
+          alert('Error: ' + (data.error || 'Failed to generate system.'));
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Network error while generating the system.');
+      }
+    }
+
+    function copyTenantLink() {
+      const linkInput = document.getElementById('generatedLinkOutput');
+      linkInput.select();
+      linkInput.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(linkInput.value);
+      alert('Link copied to clipboard!');
+    }
+    // ---------------------------------
+
     function refreshAll() {
       if (token) {
         loadUsers();
