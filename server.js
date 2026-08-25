@@ -1,6 +1,7 @@
 const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
+const bcrypt = require('bcrypt'); // Added for securing tenant admin passwords
 
 const app = express();
 
@@ -82,6 +83,18 @@ async function initDb() {
       ON CONFLICT (id) DO NOTHING;
     `);
 
+    // 5. Wifi Tenants Table (For the Multi-Tenant System Generator)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS wifi_tenants (
+        id SERIAL PRIMARY KEY,
+        business_name VARCHAR(255) NOT NULL,
+        subdomain_or_slug VARCHAR(100) UNIQUE NOT NULL,
+        admin_username VARCHAR(100) NOT NULL,
+        admin_password VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     console.log("DB Initialization Complete!");
   } catch (err) {
     console.error("DB Initialization Error:", err.message);
@@ -111,6 +124,43 @@ const requireAuthAPI = (req, res, next) => {
   }
   return res.status(401).json({ success: false, message: 'Unauthorized session' });
 };
+
+// --- MULTI-TENANT SYSTEM GENERATOR ENDPOINT ---
+app.post('/api/superadmin/create-tenant', requireAuthAPI, async (req, res) => {
+  try {
+    const { business_name, slug, admin_username, admin_password } = req.body;
+    
+    if (!business_name || !slug || !admin_username || !admin_password) {
+      return res.status(400).json({ success: false, error: 'All fields are required.' });
+    }
+
+    const cleanSlug = slug.trim().toLowerCase();
+
+    // Hash the password for safety
+    const hashedPassword = await bcrypt.hash(admin_password.trim(), 10);
+    
+    // Save tenant details to the database
+    await pool.query(
+      'INSERT INTO wifi_tenants (business_name, subdomain_or_slug, admin_username, admin_password) VALUES ($1, $2, $3, $4)',
+      [business_name.trim(), cleanSlug, admin_username.trim(), hashedPassword]
+    );
+
+    // Generate their unique link dynamically
+    const uniqueLink = `${req.protocol}://${req.get('host')}/portal/${cleanSlug}`;
+
+    res.json({ 
+      success: true, 
+      message: 'New Wi-Fi system generated successfully!', 
+      link: uniqueLink 
+    });
+  } catch (err) {
+    console.error(err);
+    if (err.code === '23505') {
+      return res.status(400).json({ success: false, error: 'This URL slug is already taken. Choose another.' });
+    }
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // --- ISP System Endpoints (With Automatic Calendar Day Decrement) ---
 
