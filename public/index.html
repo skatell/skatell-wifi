@@ -255,6 +255,9 @@
             </div>
 
             <button type="button" class="btn-payment" id="openPayBtn">PAYMENT PAGE</button>
+            
+            <!-- Added Renewal Page Button -->
+            <button onclick="openRenewalModal()" style="background-color: #e67e22; color: white; padding: 16px; width: 100%; border: none; border-radius: 4px; font-weight: bold; font-size: 16px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">RENEWAL PAGE</button>
 
             <div class="help-box">
                 <p>Need help or having trouble?</p>
@@ -309,6 +312,30 @@
             </form>
             <div id="payResponse" style="margin-top: 10px; font-size: 13px; text-align: center; font-weight: bold;"></div>
         </div>
+    </div>
+
+    <!-- Renewal Modal Structure -->
+    <div id="renewalModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); justify-content:center; align-items:center; z-index:1000;">
+      <div style="background:white; padding:25px; border-radius:8px; width:90%; max-width:400px; text-align:center; color: #333;">
+        <h3>Subscription Renewal</h3>
+        <p style="margin-top: 8px; font-size: 13px; color: #555;">Enter your registered phone number to check renewal eligibility:</p>
+        <input type="text" id="renewalPhone" placeholder="e.g. 0712345678" style="width:100%; padding:10px; margin-top: 12px; margin-bottom:15px; border:1px solid #ccc; border-radius:4px;" />
+        
+        <div id="renewalResult" style="margin-bottom: 15px; font-weight: bold; font-size: 14px;"></div>
+
+        <div id="plansContainer" style="display:none; text-align:left; margin-bottom:15px; background:#f9f9f9; padding:10px; border-radius:5px;">
+          <p style="margin: 0 0 5px 0; color: #27ae60;"><strong>Welcome back, <span id="rUserName"></span>! Select a plan:</strong></p>
+          <ul style="margin:0; padding-left:20px; font-size:13px;">
+            <li>KES 50 = 2 Days</li>
+            <li>KES 100 = 10 Days</li>
+            <li>KES 200 = 30 Days</li>
+          </ul>
+          <button onclick="window.location.href='/pay'" style="background:#27ae60; color:white; border:none; padding:8px 12px; border-radius:4px; margin-top:10px; cursor:pointer; width:100%;">Proceed to Payment</button>
+        </div>
+
+        <button onclick="checkRenewalPhone()" id="checkBtn" style="background:#3498db; color:white; border:none; padding:10px 15px; border-radius:4px; cursor:pointer; width:100%;">Check Status</button>
+        <button onclick="closeRenewalModal()" style="background:#e74c3c; color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer; width:100%; margin-top:8px;">Close</button>
+      </div>
     </div>
 
     <script>
@@ -367,6 +394,60 @@
                 payResponse.innerText = 'Network error. Please try again.';
             }
         });
+
+        // Renewal Modal Script Functions
+        function openRenewalModal() {
+          document.getElementById('renewalModal').style.display = 'flex';
+          document.getElementById('renewalResult').innerText = '';
+          document.getElementById('renewalPhone').value = '';
+          document.getElementById('plansContainer').style.display = 'none';
+          document.getElementById('checkBtn').style.display = 'block';
+        }
+
+        function closeRenewalModal() {
+          document.getElementById('renewalModal').style.display = 'none';
+        }
+
+        async function checkRenewalPhone() {
+          const phone = document.getElementById('renewalPhone').value.trim();
+          const resultDiv = document.getElementById('renewalResult');
+          const plansContainer = document.getElementById('plansContainer');
+          
+          if (!phone) {
+            resultDiv.style.color = 'red';
+            resultDiv.innerText = 'Please enter a phone number.';
+            return;
+          }
+
+          resultDiv.style.color = '#555';
+          resultDiv.innerText = 'Checking system...';
+
+          try {
+            const response = await fetch('/api/user/check-renewal', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ phone })
+            });
+            const data = await response.json();
+
+            if (!data.success && !data.isRegistered) {
+              resultDiv.style.color = 'red';
+              resultDiv.innerText = data.message; 
+            } else if (data.isExpired) {
+              resultDiv.style.color = 'green';
+              resultDiv.innerText = 'Verified! Your account is expired.';
+              document.getElementById('rUserName').innerText = data.userName;
+              plansContainer.style.display = 'block';
+              document.getElementById('checkBtn').style.display = 'none';
+            } else {
+              resultDiv.style.color = 'orange';
+              resultDiv.innerText = data.message; 
+            }
+          } catch (err) {
+            resultDiv.style.color = 'red';
+            resultDiv.innerText = 'Server error. Try again later.';
+          }
+        }
     </script>
 </body>
 </html>
