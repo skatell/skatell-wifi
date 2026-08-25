@@ -201,7 +201,7 @@ app.post('/api/admin/refill-isp', requireAuthAPI, async (req, res) => {
   }
 });
 
-// --- NEW RENEWAL CHECK ENDPOINT ---
+// --- RENEWAL CHECK ENDPOINT ---
 app.post('/api/user/check-renewal', async (req, res) => {
   try {
     let { phone } = req.body;
@@ -212,7 +212,7 @@ app.post('/api/user/check-renewal', async (req, res) => {
     }
 
     const queryText = `
-      SELECT id, phone_number, user_name, 
+      SELECT id, phone_number, user_name, device_name, mac_address, 
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
         WHEN is_paused THEN 'Paused'
@@ -248,10 +248,69 @@ app.post('/api/user/check-renewal', async (req, res) => {
       isRegistered: true, 
       isExpired: true, 
       userName: user.user_name,
+      phone: user.phone_number,
+      deviceName: user.device_name,
+      macAddress: user.mac_address,
       message: 'Account is expired. Proceed to renewal plans.' 
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: `Server error: ${err.message}` });
+  }
+});
+
+// --- AUTOMATIC RENEWAL EXECUTION ENDPOINT ---
+app.post('/api/user/renew', async (req, res) => {
+  try {
+    let { phone, days } = req.body;
+    phone = String(phone || '').trim();
+    const renewalDays = parseInt(days, 10);
+
+    if (!phone || isNaN(renewalDays) || renewalDays <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid phone number or renewal package selection.' });
+    }
+
+    const checkUser = await pool.query(`
+      SELECT id, expiry_date, 
+      CASE 
+        WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
+        WHEN is_paused THEN 'Paused'
+        WHEN expiry_date IS NULL OR CURRENT_TIMESTAMP >= expiry_date OR (expiry_date::date - CURRENT_DATE) <= 0 THEN 'Expired'
+        ELSE 'Active'
+      END AS status
+      FROM paid_users WHERE phone_number = $1
+    `, [phone]);
+
+    if (checkUser.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'User not found in system.' });
+    }
+
+    const user = checkUser.rows[0];
+    if (user.status !== 'Expired') {
+      return res.status(400).json({ success: false, message: 'Account is not expired yet. Renewal is only allowed for expired accounts.' });
+    }
+
+    const updateQuery = `
+      UPDATE paid_users 
+      SET is_approved = 1,
+          status = 'Active',
+          requested_days = $1,
+          start_date = CURRENT_TIMESTAMP,
+          expiry_date = CURRENT_TIMESTAMP + make_interval(days => $1::int),
+          is_paused = false,
+          remaining_seconds = 0
+      WHERE phone_number = $2
+      RETURNING *;
+    `;
+
+    const result = await pool.query(updateQuery, [renewalDays, phone]);
+
+    return res.json({ 
+      success: true, 
+      message: `Renewal successful! Your account has been automatically extended for ${renewalDays} days.`,
+      user: result.rows[0]
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: `Server error during renewal: ${err.message}` });
   }
 });
 
@@ -365,6 +424,15 @@ app.post('/api/verify-payment', async (req, res) => {
 
     if (paidAmount <= 0) return res.status(400).json({ success: false, message: 'Please select a valid package.' });
 
+    // STRICT CHECK: Ensure phone number does not already exist in the system for registration
+    const existingUser = await pool.query('SELECT phone_number FROM paid_users WHERE phone_number = $1', [phone]);
+    if (existingUser.rowCount > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'This phone number is already registered in the system! Please use the Renewal Page instead of the Payment Page.' 
+      });
+    }
+
     const calculatedDays = calculatePackageDays(paidAmount);
 
     let mpesaCode = 'AUTO_' + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -378,27 +446,12 @@ app.post('/api/verify-payment', async (req, res) => {
       }
     }
 
-    // Upsert renewal/payment so it clears any old expiry and resets start time to now for pending approval
     const queryText = `
       INSERT INTO paid_users (
         user_name, phone_number, amount_paid, mpesa_code, status, is_approved, 
         requested_days, start_date, expiry_date, is_paused, remaining_seconds, device_name, mac_address
       )
       VALUES ($1, $2, $3, $4, 'Pending', 0, $5, CURRENT_TIMESTAMP, NULL, false, 0, $6, $7)
-      ON CONFLICT (phone_number) 
-      DO UPDATE SET 
-        user_name = EXCLUDED.user_name,
-        mpesa_code = EXCLUDED.mpesa_code,
-        amount_paid = EXCLUDED.amount_paid,
-        requested_days = EXCLUDED.requested_days,
-        device_name = EXCLUDED.device_name,
-        mac_address = EXCLUDED.mac_address,
-        status = 'Pending',
-        is_approved = 0,
-        is_paused = false,
-        remaining_seconds = 0,
-        start_date = CURRENT_TIMESTAMP,
-        expiry_date = NULL
       RETURNING *;
     `;
     await pool.query(queryText, [name, phone, paidAmount, mpesaCode, calculatedDays, deviceName, macAddress]);
