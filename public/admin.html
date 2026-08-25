@@ -17,7 +17,6 @@
       --border-color: #e2e8f0;
       --table-stripe: #f8fafc;
     }
-
     [data-theme="dark"] {
       --bg-color: #0f172a;
       --card-bg: #1e293b;
@@ -28,7 +27,6 @@
       --border-color: #334155;
       --table-stripe: #0f172a;
     }
-
     body {
       font-family: Arial, sans-serif;
       background: var(--bg-color);
@@ -39,7 +37,6 @@
       transition: background 0.3s, color 0.3s;
       position: relative;
     }
-
     /* Admin Login Overlay */
     #adminLoginOverlay {
       position: fixed;
@@ -97,7 +94,6 @@
       margin-top: 10px;
       display: none;
     }
-
     /* Sidebar Navigation - Collapsible on both Desktop & Mobile */
     .sidebar {
       position: fixed;
@@ -115,11 +111,9 @@
       box-shadow: 4px 0 15px rgba(0,0,0,0.5);
       transition: transform 0.3s ease;
     }
-
     .sidebar.mobile-open {
       transform: translateX(250px);
     }
-
     .sidebar-brand {
       padding: 0 20px 20px 20px;
       font-size: 18px;
@@ -127,14 +121,12 @@
       color: #38bdf8;
       border-bottom: 1px solid var(--border-color);
     }
-
     .nav-menu {
       list-style: none;
       padding: 0;
       margin: 20px 0;
       flex-grow: 1;
     }
-
     .nav-item {
       padding: 12px 20px;
       cursor: pointer;
@@ -144,13 +136,11 @@
       transition: background 0.2s;
       font-size: 14px;
     }
-
     .nav-item:hover, .nav-item.active {
       background: var(--sidebar-hover);
       color: #38bdf8;
       font-weight: bold;
     }
-
     .nav-badge {
       background: #ef4444;
       color: white;
@@ -158,7 +148,6 @@
       padding: 2px 6px;
       border-radius: 10px;
     }
-
     .logout-btn {
       margin: 20px;
       background: #dc3545;
@@ -169,7 +158,6 @@
       cursor: pointer;
       font-weight: bold;
     }
-
     /* Menu Toggle Button */
     .mobile-menu-btn {
       display: inline-block;
@@ -183,7 +171,6 @@
       margin-bottom: 15px;
       font-weight: bold;
     }
-
     /* Main Content Area */
     .main-content {
       flex: 1;
@@ -192,15 +179,12 @@
       width: 100%;
       box-sizing: border-box;
     }
-
     .view-section {
       display: none;
     }
-
     .view-section.active {
       display: block;
     }
-
     .card {
       background: var(--card-bg);
       padding: 20px;
@@ -209,7 +193,6 @@
       margin-bottom: 20px;
       border: 1px solid var(--border-color);
     }
-
     .card-header {
       display: flex;
       justify-content: space-between;
@@ -218,26 +201,47 @@
       border-bottom: 2px solid var(--bg-color);
       padding-bottom: 8px;
     }
-
     .card-header h3 { margin: 0; font-size: 18px; }
-
     /* Compact Tables */
     table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 12px; }
     th, td { border: 1px solid var(--border-color); padding: 7px 8px; text-align: left; white-space: nowrap; }
     th { background: #007bff; color: white; font-size: 12px; }
     tr:nth-child(even) { background-color: var(--table-stripe); }
-
     .badge { padding: 3px 6px; border-radius: 4px; font-weight: bold; font-size: 11px; }
     .badge-active { background: #28a745; color: white; }
     .badge-paused { background: #ffc107; color: black; }
     .badge-expired { background: #6c757d; color: white; }
-
     .btn { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; margin-right: 2px; }
     .btn-approve { background: #28a745; color: white; }
     .btn-pause { background: #ffc107; color: black; }
     .btn-edit { background: #0284c7; color: white; }
     .btn-delete { background: #dc3545; color: white; }
     .btn-pdf { background: #10b981; color: white; padding: 6px 12px; font-size: 12px; }
+    
+    /* Print-specific overrides to guarantee high-contrast clean PDF exports */
+    .pdf-export-mode {
+      background: #ffffff !important;
+      color: #000000 !important;
+    }
+    .pdf-export-mode table {
+      background: #ffffff !important;
+      color: #000000 !important;
+    }
+    .pdf-export-mode th {
+      background: #007bff !important;
+      color: #ffffff !important;
+    }
+    .pdf-export-mode td {
+      background: #ffffff !important;
+      color: #333333 !important;
+      border-color: #cbd5e1 !important;
+    }
+    .pdf-export-mode tr:nth-child(even) {
+      background-color: #f8fafc !important;
+    }
+    .pdf-export-mode .badge {
+      border: 1px solid #ccc;
+    }
 
     /* Custom Synced Top Scrollbar styling */
     .top-scrollbar-container {
@@ -252,12 +256,10 @@
     .top-scrollbar-dummy {
       height: 1px;
     }
-
     /* Forms */
     .form-group { display: flex; flex-direction: column; gap: 10px; max-width: 500px; }
     .form-group input, .form-group select { padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--card-bg); color: var(--text-color); font-size: 13px; }
     .form-group button { background: #007bff; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; width: fit-content; font-size: 13px; }
-
     /* Modal Styles */
     .modal-overlay {
       display: none;
@@ -301,7 +303,6 @@
       font-size: 12px;
     }
     .full-width { grid-column: span 2; }
-
     /* ISP Visual Component Styles */
     .isp-widget-container {
       width: 100%;
@@ -361,7 +362,6 @@
   </style>
 </head>
 <body>
-
   <!-- Admin Login Overlay -->
   <div id="adminLoginOverlay" style="display: none;">
     <div class="admin-login-box">
@@ -374,7 +374,6 @@
       </form>
     </div>
   </div>
-
   <!-- Left Sidebar Navigation (Hidden by default, toggled via button) -->
   <div class="sidebar">
     <div class="sidebar-brand">Wi-Fi Control Panel</div>
@@ -398,7 +397,6 @@
     </ul>
     <button class="logout-btn" onclick="logout()">Logout</button>
   </div>
-
   <!-- Main Content Area -->
   <div class="main-content">
     
@@ -415,7 +413,6 @@
             <div style="font-size: 8px; color: #2563eb; margin-top: 2px; font-weight: bold;">✏️ CLICK TO EDIT</div>
           </div>
         </div>
-
         <div class="isp-progress-wrapper" style="width: 100%;">
           <div class="isp-progress-bar">
             <div class="bar-segment red-segment"></div>
@@ -429,7 +426,6 @@
             <span>30</span>
           </div>
         </div>
-
         <div style="margin-top: 8px; display: flex; gap: 8px;">
           <button onclick="setIspDays(30)" style="background: #2e1065; color: #fff; border: none; padding: 6px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 11px;">
             🔄 Refill 30 Days
@@ -440,7 +436,6 @@
         </div>
       </div>
     </div>
-
     <!-- Active Members Section (Main Dashboard) -->
     <div id="dashboard" class="view-section active">
       <div class="card">
@@ -448,13 +443,11 @@
           <h3>Active Subscriptions</h3>
           <button class="btn btn-pdf" onclick="exportPDF()">Export PDF List</button>
         </div>
-
         <!-- Sticky Top Horizontal Scrollbar for Easy Access -->
         <div class="top-scrollbar-container" id="topScrollbar">
           <div class="top-scrollbar-dummy" id="topScrollDummy"></div>
         </div>
-
-        <div style="overflow-x: auto;" id="pdfContent" id="tableScrollContainer">
+        <div style="overflow-x: auto;" id="pdfContent">
           <table id="activeTableElement">
             <thead>
               <tr>
@@ -479,7 +472,6 @@
         </div>
       </div>
     </div>
-
     <!-- Pending Approvals View -->
     <div id="pending" class="view-section">
       <div class="card">
@@ -508,7 +500,6 @@
         </div>
       </div>
     </div>
-
     <!-- Manual Registration View -->
     <div id="manual" class="view-section">
       <div class="card">
@@ -526,7 +517,6 @@
         </form>
       </div>
     </div>
-
     <!-- Blacklist View -->
     <div id="blacklist" class="view-section">
       <div class="card">
@@ -555,7 +545,6 @@
         </div>
       </div>
     </div>
-
     <!-- Settings Menu View -->
     <div id="settings" class="view-section">
       <div class="card">
@@ -570,7 +559,6 @@
           </select>
         </div>
       </div>
-
       <div class="card">
         <div class="card-header">
           <h3>Change Admin Credentials</h3>
@@ -582,7 +570,6 @@
         </form>
       </div>
     </div>
-
     <!-- Edit User Modal -->
     <div id="editModal" class="modal-overlay">
       <div class="modal-content">
@@ -628,33 +615,27 @@
             </select>
           </div>
         </div>
-
         <div style="margin-top: 15px; display: flex; gap: 8px; justify-content: flex-end;">
           <button class="btn btn-approve" onclick="saveUserEdit()">Save Changes</button>
           <button class="btn btn-delete" onclick="closeEditModal()">Cancel</button>
         </div>
       </div>
     </div>
-
   </div>
-
   <script>
     let token = localStorage.getItem('adminToken');
     let headers = {
       'Content-Type': 'application/json',
       'x-admin-token': token || ''
     };
-
     if (!token) {
       document.getElementById('adminLoginOverlay').style.display = 'flex';
     }
-
     async function handleAdminLogin(e) {
       e.preventDefault();
       const username = document.getElementById('adminUser').value.trim();
       const password = document.getElementById('adminPass').value.trim();
       const errorEl = document.getElementById('loginError');
-
       try {
         const res = await fetch('/api/admin/login', {
           method: 'POST',
@@ -662,7 +643,6 @@
           body: JSON.stringify({ username, password })
         });
         const data = await res.json();
-
         if (data.success && data.token) {
           localStorage.setItem('adminToken', data.token);
           token = data.token;
@@ -678,50 +658,40 @@
         errorEl.style.display = 'block';
       }
     }
-
     // Toggle Sidebar visibility for both mobile and desktop
     function toggleMobileSidebar() {
       const sidebar = document.querySelector('.sidebar');
       sidebar.classList.toggle('mobile-open');
     }
-
     function switchTab(tabId, element) {
       document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
       
       document.getElementById(tabId).classList.add('active');
       if (element) element.classList.add('active');
-
       document.querySelector('.sidebar').classList.remove('mobile-open');
     }
-
     function changeTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme);
       localStorage.setItem('adminTheme', theme);
     }
-
     const savedTheme = localStorage.getItem('adminTheme') || 'light';
     changeTheme(savedTheme);
     document.getElementById('themeSelect').value = savedTheme;
-
     function logout() {
       localStorage.removeItem('adminToken');
       document.getElementById('adminLoginOverlay').style.display = 'flex';
     }
-
     async function updateIspWidget() {
       try {
         const res = await fetch('/api/isp-status');
         const data = await res.json();
         const days = data.days_left ?? 0;
-
         const countElem = document.getElementById('ispDaysCount');
         if (countElem) countElem.innerText = days;
-
         const redSeg = document.querySelector('.red-segment');
         const blueSeg = document.querySelector('.blue-segment');
         const greenSeg = document.querySelector('.green-segment');
-
         if (redSeg && blueSeg && greenSeg) {
           redSeg.style.opacity = (days >= 1 && days <= 9) ? "1" : "0.35";
           blueSeg.style.opacity = (days >= 10 && days <= 19) ? "1" : "0.35";
@@ -731,7 +701,6 @@
         console.error('Failed to sync ISP Status:', e);
       }
     }
-
     async function editIspDays() {
       const currentDays = document.getElementById('ispDaysCount')?.innerText || "0";
       const input = prompt("Enter remaining ISP days (0 to 30):", currentDays);
@@ -744,7 +713,6 @@
       }
       await setIspDays(days);
     }
-
     async function setIspDays(days) {
       try {
         const res = await fetch('/api/admin/update-isp-days', {
@@ -762,24 +730,32 @@
         alert("Network error: " + e.message);
       }
     }
-
+    
+    // Updated clean PDF Export Function
     function exportPDF() {
       const element = document.getElementById('pdfContent');
+      element.classList.add('pdf-export-mode');
+
       const style = document.createElement('style');
       style.id = 'hide-actions';
       style.innerHTML = '.no-print, tbody button { display: none !important; }';
-      document.head.appendChild(style);
+      document.getElementById('pdfContent').appendChild(style);
 
       const opt = {
         margin:     0.5,
         filename:    'active_members_report.pdf',
         image:       { type: 'jpeg', quality: 0.98 },
-        html2canvas:   { scale: 2 },
+        html2canvas:   { scale: 3, useCORS: true, letterRendering: true, backgroundColor: '#ffffff' },
         jsPDF:       { unit: 'in', format: 'letter', orientation: 'landscape' }
       };
 
       html2pdf().set(opt).from(element).save().then(() => {
         document.getElementById('hide-actions').remove();
+        element.classList.remove('pdf-export-mode');
+      }).catch(err => {
+        console.error(err);
+        document.getElementById('hide-actions').remove();
+        element.classList.remove('pdf-export-mode');
       });
     }
 
@@ -795,7 +771,6 @@
           tbody.innerHTML = '<tr><td colspan="9">No pending requests.</td></tr>';
           return;
         }
-
         tbody.innerHTML = data.map(u => `
           <tr>
             <td>${u.id}</td>
@@ -814,7 +789,6 @@
         `).join('');
       } catch (err) { console.error(err); }
     }
-
     async function loadUsers() {
       try {
         const res = await fetch('/api/admin/users', { headers });
@@ -826,14 +800,11 @@
           tbody.innerHTML = '<tr><td colspan="12">No active subscriptions.</td></tr>';
           return;
         }
-
         tbody.innerHTML = data.map(u => {
           let badgeClass = 'badge-active';
           if (u.status === 'Paused') badgeClass = 'badge-paused';
           if (u.status === 'Expired') badgeClass = 'badge-expired';
-
           const jsonString = JSON.stringify(u).replace(/'/g, "&apos;");
-
           return `
             <tr>
               <td>${u.id}</td>
@@ -855,22 +826,18 @@
             </tr>
           `;
         }).join('');
-
         // Sync widths for custom top scrollbar after content loads
         setTimeout(syncScrollbars, 100);
       } catch (err) { console.error(err); }
     }
-
     // Synchronize Top Scrollbar with Main Table Scroll
     function syncScrollbars() {
       const topScroll = document.getElementById('topScrollbar');
       const topDummy = document.getElementById('topScrollDummy');
       const tableContainer = document.getElementById('pdfContent');
       const tableElem = document.getElementById('activeTableElement');
-
       if (topScroll && tableContainer && tableElem) {
         topDummy.style.width = tableElem.scrollWidth + 'px';
-
         topScroll.onscroll = function() {
           tableContainer.scrollLeft = topScroll.scrollLeft;
         };
@@ -880,7 +847,6 @@
       }
     }
     window.addEventListener('resize', syncScrollbars);
-
     function openEditModal(user) {
       document.getElementById('edit_id').value = user.id;
       document.getElementById('edit_user_name').value = user.user_name || '';
@@ -893,11 +859,9 @@
       document.getElementById('edit_status').value = user.status || 'Active';
       document.getElementById('editModal').style.display = 'block';
     }
-
     function closeEditModal() {
       document.getElementById('editModal').style.display = 'none';
     }
-
     async function saveUserEdit() {
       const payload = {
         id: document.getElementById('edit_id').value,
@@ -910,7 +874,6 @@
         mac_address: document.getElementById('edit_mac_address').value,
         status: document.getElementById('edit_status').value
       };
-
       try {
         const res = await fetch('/api/admin/update-user', {
           method: 'POST',
@@ -930,7 +893,6 @@
         alert('Error sending update request.');
       }
     }
-
     async function loadBlacklist() {
       try {
         const res = await fetch('/api/admin/blacklist', { headers });
@@ -952,24 +914,20 @@
         `).join('');
       } catch (err) { console.error(err); }
     }
-
     async function approveUser(id) {
       if (!confirm('Approve subscription request?')) return;
       await fetch('/api/admin/approve-user', { method: 'POST', headers, body: JSON.stringify({ id }) });
       refreshAll();
     }
-
     async function togglePause(id) {
       await fetch('/api/admin/toggle-pause', { method: 'POST', headers, body: JSON.stringify({ id }) });
       refreshAll();
     }
-
     async function deleteUser(id) {
       if (!confirm('Are you sure you want to delete this record?')) return;
       await fetch(`/api/admin/delete/${id}`, { method: 'DELETE', headers });
       refreshAll();
     }
-
     async function handleManualRegister(e) {
       e.preventDefault();
       const body = {
@@ -980,7 +938,6 @@
         amount: parseFloat(document.getElementById('regAmount').value) || 0,
         days: parseInt(document.getElementById('regDays').value, 10) || 1
       };
-
       try {
         const res = await fetch('/api/admin/register', { 
           method: 'POST', 
@@ -988,7 +945,6 @@
           body: JSON.stringify(body) 
         });
         const data = await res.json();
-
         if (res.ok) {
           alert(data.message || 'User registered successfully!');
           e.target.reset();
@@ -1003,7 +959,6 @@
         alert('Network error while registering user.');
       }
     }
-
     async function handleBlacklist(e) {
       e.preventDefault();
       const phone = document.getElementById('blackPhone').value.trim();
@@ -1012,12 +967,10 @@
       e.target.reset();
       loadBlacklist();
     }
-
     async function unblockPhone(phone) {
       await fetch(`/api/admin/blacklist/${encodeURIComponent(phone)}`, { method: 'DELETE', headers });
       loadBlacklist();
     }
-
     function refreshAll() {
       if (token) {
         loadUsers();
@@ -1026,7 +979,6 @@
         updateIspWidget();
       }
     }
-
     refreshAll();
     setInterval(refreshAll, 10000);
   </script>
