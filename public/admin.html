@@ -94,10 +94,10 @@
       margin-top: 10px;
       display: none;
     }
-    /* Sidebar Navigation - Collapsible on both Desktop & Mobile */
+    /* Sidebar Navigation - Fixed & Always Visible on Desktop */
     .sidebar {
       position: fixed;
-      left: -250px;
+      left: 0;
       top: 0;
       width: 250px;
       height: 100%;
@@ -111,8 +111,13 @@
       box-shadow: 4px 0 15px rgba(0,0,0,0.5);
       transition: transform 0.3s ease;
     }
-    .sidebar.mobile-open {
-      transform: translateX(250px);
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-250px);
+      }
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
     }
     .sidebar-brand {
       padding: 0 20px 20px 20px;
@@ -126,6 +131,7 @@
       padding: 0;
       margin: 20px 0;
       flex-grow: 1;
+      overflow-y: auto;
     }
     .nav-item {
       padding: 12px 20px;
@@ -160,7 +166,7 @@
     }
     /* Menu Toggle Button */
     .mobile-menu-btn {
-      display: inline-block;
+      display: none;
       background: #007bff;
       color: white;
       border: none;
@@ -171,13 +177,25 @@
       margin-bottom: 15px;
       font-weight: bold;
     }
-    /* Main Content Area */
+    @media (max-width: 768px) {
+      .mobile-menu-btn {
+        display: inline-block;
+      }
+    }
+    /* Main Content Area Pushed Right to Accommodate Fixed Sidebar */
     .main-content {
       flex: 1;
+      margin-left: 250px;
       padding: 20px;
       overflow-y: auto;
-      width: 100%;
+      width: calc(100% - 250px);
       box-sizing: border-box;
+    }
+    @media (max-width: 768px) {
+      .main-content {
+        margin-left: 0;
+        width: 100%;
+      }
     }
     .view-section {
       display: none;
@@ -374,7 +392,7 @@
       </form>
     </div>
   </div>
-  <!-- Left Sidebar Navigation (Hidden by default, toggled via button) -->
+  <!-- Left Sidebar Navigation -->
   <div class="sidebar">
     <div class="sidebar-brand">Wi-Fi Control Panel</div>
     <ul class="nav-menu">
@@ -699,7 +717,7 @@
         errorEl.style.display = 'block';
       }
     }
-    // Toggle Sidebar visibility for both mobile and desktop
+    // Toggle Sidebar visibility for mobile
     function toggleMobileSidebar() {
       const sidebar = document.querySelector('.sidebar');
       sidebar.classList.toggle('mobile-open');
@@ -836,13 +854,11 @@
         if (res.status === 401) return logout();
         const data = await res.json();
         
-        // --- Calculate Total Money Generated from Active Members ---
         let totalRevenue = 0;
         data.forEach(u => {
           totalRevenue += parseFloat(u.amount_paid) || 0;
         });
         document.getElementById('totalRevenueDisplay').innerText = `KES ${totalRevenue.toLocaleString()}`;
-        // -----------------------------------------------------------
 
         const tbody = document.getElementById('usersTable');
         if (data.length === 0) {
@@ -875,11 +891,9 @@
             </tr>
           `;
         }).join('');
-        // Sync widths for custom top scrollbar after content loads
         setTimeout(syncScrollbars, 100);
       } catch (err) { console.error(err); }
     }
-    // Synchronize Top Scrollbar with Main Table Scroll
     function syncScrollbars() {
       const topScroll = document.getElementById('topScrollbar');
       const topDummy = document.getElementById('topScrollDummy');
