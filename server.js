@@ -201,6 +201,60 @@ app.post('/api/admin/refill-isp', requireAuthAPI, async (req, res) => {
   }
 });
 
+// --- NEW RENEWAL CHECK ENDPOINT ---
+app.post('/api/user/check-renewal', async (req, res) => {
+  try {
+    let { phone } = req.body;
+    phone = String(phone || '').trim();
+
+    if (!phone) {
+      return res.status(400).json({ success: false, message: 'Please enter your phone number.' });
+    }
+
+    const queryText = `
+      SELECT id, phone_number, user_name, 
+      CASE 
+        WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
+        WHEN is_paused THEN 'Paused'
+        WHEN expiry_date IS NULL OR CURRENT_TIMESTAMP >= expiry_date OR (expiry_date::date - CURRENT_DATE) <= 0 THEN 'Expired'
+        ELSE 'Active'
+      END AS status
+      FROM paid_users 
+      WHERE phone_number = $1;
+    `;
+    const result = await pool.query(queryText, [phone]);
+
+    if (result.rowCount === 0) {
+      return res.json({ 
+        success: false, 
+        isRegistered: false, 
+        message: 'Phone number not found in system. Please go back and use the Payment Page.' 
+      });
+    }
+
+    const user = result.rows[0];
+
+    if (user.status !== 'Expired') {
+      return res.json({ 
+        success: true, 
+        isRegistered: true, 
+        isExpired: false, 
+        message: `Your account status is currently "${user.status}". You only need to renew when your account is expired.` 
+      });
+    }
+
+    return res.json({ 
+      success: true, 
+      isRegistered: true, 
+      isExpired: true, 
+      userName: user.user_name,
+      message: 'Account is expired. Proceed to renewal plans.' 
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: `Server error: ${err.message}` });
+  }
+});
+
 // Page Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/pay', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
