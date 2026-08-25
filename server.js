@@ -115,17 +115,18 @@ function calculatePackageDays(amount) {
 let ADMIN_USER = process.env.ADMIN_USER || 'roggers';
 let ADMIN_PASS = process.env.ADMIN_PASS || '8422';
 const activeSessions = new Set();
+const activeTenantSessions = new Set();
 
 // Guard Middleware
 const requireAuthAPI = (req, res, next) => {
   const token = req.headers['x-admin-token'] || req.headers['authorization'];
-  if (token && activeSessions.has(token)) {
+  if (token && (activeSessions.has(token) || activeTenantSessions.has(token))) {
     return next();
   }
   return res.status(401).json({ success: false, message: 'Unauthorized session' });
 };
 
-// --- MULTI-TENANT SYSTEM GENERATOR ENDPOINT ---
+// --- MULTI-TENANT SYSTEM GENERATOR ENDPOINTS ---
 app.post('/api/superadmin/create-tenant', requireAuthAPI, async (req, res) => {
   try {
     const { business_name, slug, admin_username, admin_password } = req.body;
@@ -158,6 +159,42 @@ app.post('/api/superadmin/create-tenant', requireAuthAPI, async (req, res) => {
     if (err.code === '23505') {
       return res.status(400).json({ success: false, error: 'This URL slug is already taken. Choose another.' });
     }
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Tenant Login Endpoint
+app.post('/api/tenant/login', async (req, res) => {
+  try {
+    let { slug, username, password } = req.body;
+    slug = String(slug || '').trim().toLowerCase();
+    username = String(username || '').trim();
+    password = String(password || '').trim();
+
+    if (!slug || !username || !password) {
+      return res.status(400).json({ success: false, message: 'All fields are required.' });
+    }
+
+    const tenantRes = await pool.query('SELECT * FROM wifi_tenants WHERE subdomain_or_slug = $1', [slug]);
+    if (tenantRes.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Tenant portal not found.' });
+    }
+
+    const tenant = tenantRes.rows[0];
+    if (tenant.admin_username !== username) {
+      return res.status(401).json({ success: false, message: 'Invalid username or password.' });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, tenant.admin_password);
+    if (!passwordMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid username or password.' });
+    }
+
+    const token = 'tenant_tok_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+    activeTenantSessions.add(token);
+
+    res.json({ success: true, token, business_name: tenant.business_name });
+  } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -371,6 +408,7 @@ app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'log
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/admin-login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/user', (req, res) => res.sendFile(path.join(__dirname, 'public', 'user.html')));
+app.get('/portal/:slug', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.get('/api/user-count', async (req, res) => {
   try {
@@ -582,7 +620,6 @@ app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
   }
 });
 
-// --- UPDATED EDIT / UPDATE USER ENDPOINT ---
 app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
   try {
     const { id, user_name, phone_number, mpesa_code, amount_paid, requested_days, device_name, mac_address, status, is_approved } = req.body;
@@ -597,7 +634,6 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
     let queryText = '';
     let queryParams = [];
 
-    // If remaining days are set to 0 or less, mark user as Expired and past-due date
     if (!isNaN(parsedDays) && parsedDays <= 0) {
       userStatus = 'Expired';
       queryText = `
