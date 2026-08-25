@@ -424,7 +424,6 @@ app.post('/api/verify-payment', async (req, res) => {
 
     if (paidAmount <= 0) return res.status(400).json({ success: false, message: 'Please select a valid package.' });
 
-    // STRICT CHECK: Ensure phone number does not already exist in the system for registration
     const existingUser = await pool.query('SELECT phone_number FROM paid_users WHERE phone_number = $1', [phone]);
     if (existingUser.rowCount > 0) {
       return res.status(400).json({ 
@@ -533,6 +532,7 @@ app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
   }
 });
 
+// --- UPDATED EDIT / UPDATE USER ENDPOINT ---
 app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
   try {
     const { id, user_name, phone_number, mpesa_code, amount_paid, requested_days, device_name, mac_address, status, is_approved } = req.body;
@@ -541,29 +541,55 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
     const userId = parseInt(id, 10);
     const paidAmount = parseFloat(amount_paid) || 0;
     const parsedDays = parseInt(requested_days, 10);
-    const calculatedDays = (!isNaN(parsedDays) && parsedDays > 0) ? parsedDays : calculatePackageDays(paidAmount);
     const approvedFlag = (is_approved !== undefined && is_approved !== null) ? parseInt(is_approved, 10) : 1;
-    const userStatus = status || 'Active';
+    
+    let userStatus = status || 'Active';
+    let queryText = '';
+    let queryParams = [];
 
-    const queryText = `
-      UPDATE paid_users 
-      SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4, requested_days = $5,
-          device_name = $6, mac_address = $7, status = $8, is_approved = $9,
-          start_date = CURRENT_TIMESTAMP,
-          expiry_date = CURRENT_TIMESTAMP + make_interval(days => $5::int)
-      WHERE id = $10
-      RETURNING *;
-    `;
+    // If remaining days are set to 0 or less, mark user as Expired and past-due date
+    if (!isNaN(parsedDays) && parsedDays <= 0) {
+      userStatus = 'Expired';
+      queryText = `
+        UPDATE paid_users 
+        SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4, requested_days = 0,
+            device_name = $5, mac_address = $6, status = $7, is_approved = $8,
+            expiry_date = CURRENT_TIMESTAMP - INTERVAL '1 day'
+        WHERE id = $9
+        RETURNING *;
+      `;
+      queryParams = [
+        user_name ? user_name.trim() : '',
+        phone_number ? phone_number.trim() : '',
+        mpesa_code ? mpesa_code.trim().toUpperCase() : '',
+        paidAmount,
+        device_name ? device_name.trim() : '',
+        mac_address ? mac_address.trim().toUpperCase() : '',
+        userStatus, approvedFlag, userId
+      ];
+    } else {
+      const calculatedDays = (!isNaN(parsedDays) && parsedDays > 0) ? parsedDays : calculatePackageDays(paidAmount);
+      queryText = `
+        UPDATE paid_users 
+        SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4, requested_days = $5,
+            device_name = $6, mac_address = $7, status = $8, is_approved = $9,
+            start_date = CURRENT_TIMESTAMP,
+            expiry_date = CURRENT_TIMESTAMP + make_interval(days => $5::int)
+        WHERE id = $10
+        RETURNING *;
+      `;
+      queryParams = [
+        user_name ? user_name.trim() : '',
+        phone_number ? phone_number.trim() : '',
+        mpesa_code ? mpesa_code.trim().toUpperCase() : '',
+        paidAmount, calculatedDays,
+        device_name ? device_name.trim() : '',
+        mac_address ? mac_address.trim().toUpperCase() : '',
+        userStatus, approvedFlag, userId
+      ];
+    }
 
-    const result = await pool.query(queryText, [
-      user_name ? user_name.trim() : '',
-      phone_number ? phone_number.trim() : '',
-      mpesa_code ? mpesa_code.trim().toUpperCase() : '',
-      paidAmount, calculatedDays,
-      device_name ? device_name.trim() : '',
-      mac_address ? mac_address.trim().toUpperCase() : '',
-      userStatus, approvedFlag, userId
-    ]);
+    const result = await pool.query(queryText, queryParams);
 
     if (result.rowCount === 0) return res.status(404).json({ success: false, message: 'Member ID not found in database.' });
     return res.json({ success: true, message: 'All member details updated successfully!', user: result.rows[0] });
