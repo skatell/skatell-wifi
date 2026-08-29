@@ -509,7 +509,7 @@
     <div id="pending" class="view-section">
       <div class="card">
         <div class="card-header">
-          <h3>Pending Approvals</h3>
+          <h3>Pending Approvals & Renewals</h3>
         </div>
         <div style="overflow-x: auto;">
           <table>
@@ -979,11 +979,29 @@
         `).join('');
       } catch (err) { console.error(err); }
     }
+    
+    // Updated approveUser function interacting with backend /api/admin/approve-user endpoint
     async function approveUser(id) {
-      if (!confirm('Approve subscription request?')) return;
-      await fetch('/api/admin/approve-user', { method: 'POST', headers, body: JSON.stringify({ id }) });
-      refreshAll();
+      if (!confirm('Approve subscription/renewal request?')) return;
+      try {
+        const res = await fetch('/api/admin/approve-user', { 
+          method: 'POST', 
+          headers, 
+          body: JSON.stringify({ id }) 
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert(data.message || 'Request approved successfully!');
+          refreshAll();
+        } else {
+          alert('Error: ' + (data.message || data.error || 'Failed to approve'));
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Network error during approval.');
+      }
     }
+
     async function togglePause(id) {
       await fetch('/api/admin/toggle-pause', { method: 'POST', headers, body: JSON.stringify({ id }) });
       refreshAll();
