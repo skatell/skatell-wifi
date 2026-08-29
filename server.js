@@ -28,7 +28,7 @@ async function initDb() {
         status VARCHAR(20) DEFAULT 'Pending',
         is_approved INT DEFAULT 0,
         requested_days INT DEFAULT 0,
-        start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        start_date TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi'),
         expiry_date TIMESTAMP,
         is_paused BOOLEAN DEFAULT FALSE,
         remaining_seconds INT DEFAULT 0,
@@ -43,7 +43,7 @@ async function initDb() {
         id SERIAL PRIMARY KEY,
         phone_number VARCHAR(20) UNIQUE NOT NULL,
         reason TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')
       );
     `);
 
@@ -68,18 +68,18 @@ async function initDb() {
       CREATE TABLE IF NOT EXISTS isp_settings (
         id INT PRIMARY KEY DEFAULT 1,
         days_left INT DEFAULT 30,
-        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        last_updated TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')
       );
     `);
 
     // Safety check to automatically add 'last_updated' if it's missing from an older table version
     await pool.query(`
-      ALTER TABLE isp_settings ADD COLUMN IF NOT EXISTS last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+      ALTER TABLE isp_settings ADD COLUMN IF NOT EXISTS last_updated TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi');
     `);
 
     await pool.query(`
       INSERT INTO isp_settings (id, days_left, last_updated)
-      VALUES (1, 30, CURRENT_TIMESTAMP)
+      VALUES (1, 30, (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi'))
       ON CONFLICT (id) DO NOTHING;
     `);
 
@@ -91,7 +91,7 @@ async function initDb() {
         subdomain_or_slug VARCHAR(100) UNIQUE NOT NULL,
         admin_username VARCHAR(100) NOT NULL,
         admin_password VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')
       );
     `);
 
@@ -199,15 +199,14 @@ app.post('/api/tenant/login', async (req, res) => {
   }
 });
 
-// --- ISP System Endpoints (With Automatic Calendar Day Decrement) ---
+// --- ISP System Endpoints (With EAT Local Timezone Support) ---
 
 app.get('/api/isp-status', async (req, res) => {
   try {
-    // Automatically reduce days_left based on local EAT calendar days, avoiding UTC timezone mismatch shifts
     await pool.query(`
       UPDATE isp_settings 
       SET days_left = GREATEST(0, days_left - ((CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date - (last_updated AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date)),
-          last_updated = CURRENT_TIMESTAMP
+          last_updated = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')
       WHERE id = 1 AND (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date > (last_updated AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date;
     `);
 
@@ -234,22 +233,22 @@ app.post('/api/admin/update-isp-days', requireAuthAPI, async (req, res) => {
     const autoPauseRes = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_auto_paused'");
     const isAutoPaused = autoPauseRes.rowCount > 0 && autoPauseRes.rows[0].value === 'true';
 
-    await pool.query(`UPDATE isp_settings SET days_left = $1, last_updated = CURRENT_TIMESTAMP WHERE id = 1;`, [parsedDays]);
+    await pool.query(`UPDATE isp_settings SET days_left = $1, last_updated = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') WHERE id = 1;`, [parsedDays]);
 
     if (parsedDays === 0) {
       await pool.query(`
         UPDATE paid_users 
         SET is_paused = true, 
-            remaining_seconds = GREATEST(0, EXTRACT(EPOCH FROM (expiry_date - CURRENT_TIMESTAMP))::INT),
+            remaining_seconds = GREATEST(0, EXTRACT(EPOCH FROM (expiry_date - (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')))::INT),
             status = 'Paused'
-        WHERE is_approved = 1 AND is_paused = false AND expiry_date > CURRENT_TIMESTAMP;
+        WHERE is_approved = 1 AND is_paused = false AND expiry_date > (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi');
       `);
       await pool.query(`INSERT INTO system_settings (key, value) VALUES ('isp_auto_paused', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true';`);
     } else if (parsedDays > 0 && isAutoPaused) {
       await pool.query(`
         UPDATE paid_users 
         SET is_paused = false, 
-            expiry_date = CURRENT_TIMESTAMP + (remaining_seconds * INTERVAL '1 second'),
+            expiry_date = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') + (remaining_seconds * INTERVAL '1 second'),
             remaining_seconds = 0,
             status = 'Active'
         WHERE is_approved = 1 AND is_paused = true AND remaining_seconds > 0;
@@ -268,13 +267,13 @@ app.post('/api/admin/refill-isp', requireAuthAPI, async (req, res) => {
     const autoPauseRes = await pool.query("SELECT value FROM system_settings WHERE key = 'isp_auto_paused'");
     const isAutoPaused = autoPauseRes.rowCount > 0 && autoPauseRes.rows[0].value === 'true';
 
-    await pool.query(`UPDATE isp_settings SET days_left = 30, last_updated = CURRENT_TIMESTAMP WHERE id = 1;`);
+    await pool.query(`UPDATE isp_settings SET days_left = 30, last_updated = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') WHERE id = 1;`);
 
     if (isAutoPaused) {
       await pool.query(`
         UPDATE paid_users 
         SET is_paused = false, 
-            expiry_date = CURRENT_TIMESTAMP + (remaining_seconds * INTERVAL '1 second'),
+            expiry_date = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') + (remaining_seconds * INTERVAL '1 second'),
             remaining_seconds = 0,
             status = 'Active'
         WHERE is_approved = 1 AND is_paused = true AND remaining_seconds > 0;
@@ -303,7 +302,7 @@ app.post('/api/user/check-renewal', async (req, res) => {
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
         WHEN is_paused THEN 'Paused'
-        WHEN expiry_date IS NULL OR CURRENT_TIMESTAMP >= expiry_date OR (expiry_date::date - CURRENT_DATE) <= 0 THEN 'Expired'
+        WHEN expiry_date IS NULL OR (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') >= expiry_date OR (expiry_date::date - (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date) <= 0 THEN 'Expired'
         ELSE 'Active'
       END AS status
       FROM paid_users 
@@ -361,7 +360,7 @@ app.post('/api/user/renew', async (req, res) => {
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
         WHEN is_paused THEN 'Paused'
-        WHEN expiry_date IS NULL OR CURRENT_TIMESTAMP >= expiry_date OR (expiry_date::date - CURRENT_DATE) <= 0 THEN 'Expired'
+        WHEN expiry_date IS NULL OR (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') >= expiry_date OR (expiry_date::date - (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date) <= 0 THEN 'Expired'
         ELSE 'Active'
       END AS status
       FROM paid_users WHERE phone_number = $1
@@ -381,8 +380,8 @@ app.post('/api/user/renew', async (req, res) => {
       SET is_approved = 1,
           status = 'Active',
           requested_days = $1,
-          start_date = CURRENT_TIMESTAMP,
-          expiry_date = CURRENT_TIMESTAMP + ($1 || ' days')::INTERVAL,
+          start_date = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi'),
+          expiry_date = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') + ($1 || ' days')::INTERVAL,
           is_paused = false,
           remaining_seconds = 0
       WHERE phone_number = $2
@@ -462,14 +461,14 @@ app.post('/api/user/login', async (req, res) => {
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
         WHEN is_paused THEN 'Paused'
-        WHEN expiry_date IS NULL OR CURRENT_TIMESTAMP >= expiry_date OR (expiry_date::date - CURRENT_DATE) <= 0 THEN 'Expired'
+        WHEN expiry_date IS NULL OR (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') >= expiry_date OR (expiry_date::date - (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date) <= 0 THEN 'Expired'
         ELSE 'Active'
       END AS status,
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 0
         WHEN is_paused THEN FLOOR(remaining_seconds / 86400.0)
-        WHEN expiry_date IS NULL OR CURRENT_TIMESTAMP >= expiry_date THEN 0
-        ELSE GREATEST(0, (expiry_date::date - CURRENT_DATE))
+        WHEN expiry_date IS NULL OR (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') >= expiry_date THEN 0
+        ELSE GREATEST(0, (expiry_date::date - (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date))
       END AS days_left
       FROM paid_users 
       WHERE phone_number = $1 AND LOWER(user_name) = LOWER($2);
@@ -540,7 +539,7 @@ app.post('/api/verify-payment', async (req, res) => {
         user_name, phone_number, amount_paid, mpesa_code, status, is_approved, 
         requested_days, start_date, expiry_date, is_paused, remaining_seconds, device_name, mac_address
       )
-      VALUES ($1, $2, $3, $4, 'Pending', 0, $5, CURRENT_TIMESTAMP, NULL, false, 0, $6, $7)
+      VALUES ($1, $2, $3, $4, 'Pending', 0, $5, (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi'), NULL, false, 0, $6, $7)
       RETURNING *, 
         TO_CHAR(start_date, 'YYYY-MM-DD HH24:MI') AS payment_date;
     `;
@@ -561,14 +560,14 @@ app.get('/api/admin/users', requireAuthAPI, async (req, res) => {
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 'Pending'
         WHEN is_paused THEN 'Paused'
-        WHEN expiry_date IS NULL OR CURRENT_TIMESTAMP >= expiry_date OR (expiry_date::date - CURRENT_DATE) <= 0 THEN 'Expired'
+        WHEN expiry_date IS NULL OR (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') >= expiry_date OR (expiry_date::date - (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date) <= 0 THEN 'Expired'
         ELSE 'Active'
       END AS status,
       CASE 
         WHEN is_approved = 0 OR is_approved IS NULL THEN 0
         WHEN is_paused THEN FLOOR(remaining_seconds / 86400.0)
-        WHEN expiry_date IS NULL OR CURRENT_TIMESTAMP >= expiry_date THEN 0
-        ELSE GREATEST(0, (expiry_date::date - CURRENT_DATE))
+        WHEN expiry_date IS NULL OR (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') >= expiry_date THEN 0
+        ELSE GREATEST(0, (expiry_date::date - (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date))
       END AS days_left
       FROM paid_users 
       WHERE is_approved = 1
@@ -612,8 +611,8 @@ app.post('/api/admin/approve-user', requireAuthAPI, async (req, res) => {
       SET is_approved = 1,
           status = 'Active',
           requested_days = $1,
-          start_date = CURRENT_TIMESTAMP,
-          expiry_date = CURRENT_TIMESTAMP + ($1 || ' days')::INTERVAL
+          start_date = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi'),
+          expiry_date = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') + ($1 || ' days')::INTERVAL
       WHERE id = $2
       RETURNING *,
         TO_CHAR(start_date, 'YYYY-MM-DD HH24:MI') AS payment_date,
@@ -646,7 +645,7 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
         UPDATE paid_users 
         SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4, requested_days = 0,
             device_name = $5, mac_address = $6, status = $7, is_approved = $8,
-            expiry_date = CURRENT_TIMESTAMP - INTERVAL '1 day'
+            expiry_date = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') - INTERVAL '1 day'
         WHERE id = $9
         RETURNING *,
           TO_CHAR(start_date, 'YYYY-MM-DD HH24:MI') AS payment_date,
@@ -667,8 +666,8 @@ app.post('/api/admin/update-user', requireAuthAPI, async (req, res) => {
         UPDATE paid_users 
         SET user_name = $1, phone_number = $2, mpesa_code = $3, amount_paid = $4, requested_days = $5,
             device_name = $6, mac_address = $7, status = $8, is_approved = $9,
-            start_date = CURRENT_TIMESTAMP,
-            expiry_date = CURRENT_TIMESTAMP + ($5 || ' days')::INTERVAL
+            start_date = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi'),
+            expiry_date = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') + ($5 || ' days')::INTERVAL
         WHERE id = $10
         RETURNING *,
           TO_CHAR(start_date, 'YYYY-MM-DD HH24:MI') AS payment_date,
@@ -712,7 +711,7 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
       )
       VALUES (
         $1, $2, $3, $4, 'Active', 1, 
-        $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($5 || ' days')::INTERVAL, false, 0, $6, $7
+        $5, (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi'), (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') + ($5 || ' days')::INTERVAL, false, 0, $6, $7
       )
       ON CONFLICT (phone_number) DO UPDATE SET
         user_name = EXCLUDED.user_name,
@@ -725,8 +724,8 @@ app.post('/api/admin/register', requireAuthAPI, async (req, res) => {
         requested_days = EXCLUDED.requested_days,
         is_paused = false,
         remaining_seconds = 0,
-        start_date = CURRENT_TIMESTAMP,
-        expiry_date = CURRENT_TIMESTAMP + (EXCLUDED.requested_days || ' days')::INTERVAL
+        start_date = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi'),
+        expiry_date = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') + (EXCLUDED.requested_days || ' days')::INTERVAL
       RETURNING *,
         TO_CHAR(start_date, 'YYYY-MM-DD HH24:MI') AS payment_date,
         TO_CHAR(expiry_date, 'YYYY-MM-DD HH24:MI') AS end_date;
@@ -757,7 +756,7 @@ app.post('/api/admin/toggle-pause', requireAuthAPI, async (req, res) => {
       const q = await pool.query(`
         UPDATE paid_users 
         SET is_paused = true, 
-            remaining_seconds = GREATEST(0, EXTRACT(EPOCH FROM (expiry_date - CURRENT_TIMESTAMP))::INT),
+            remaining_seconds = GREATEST(0, EXTRACT(EPOCH FROM (expiry_date - (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')))::INT),
             status = 'Paused'
         WHERE id = $1
         RETURNING *, TO_CHAR(start_date, 'YYYY-MM-DD HH24:MI') AS payment_date, TO_CHAR(expiry_date, 'YYYY-MM-DD HH24:MI') AS end_date;
@@ -768,7 +767,7 @@ app.post('/api/admin/toggle-pause', requireAuthAPI, async (req, res) => {
       const q = await pool.query(`
         UPDATE paid_users 
         SET is_paused = false, 
-            expiry_date = CURRENT_TIMESTAMP + (remaining_seconds * INTERVAL '1 second'),
+            expiry_date = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi') + (remaining_seconds * INTERVAL '1 second'),
             remaining_seconds = 0,
             status = 'Active'
         WHERE id = $1
