@@ -203,12 +203,12 @@ app.post('/api/tenant/login', async (req, res) => {
 
 app.get('/api/isp-status', async (req, res) => {
   try {
-    // Automatically reduce days_left based on elapsed calendar days since last checked/updated
+    // Automatically reduce days_left based on local EAT calendar days, avoiding UTC timezone mismatch shifts
     await pool.query(`
       UPDATE isp_settings 
-      SET days_left = GREATEST(0, days_left - (CURRENT_DATE - last_updated::date)),
+      SET days_left = GREATEST(0, days_left - ((CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date - (last_updated AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date)),
           last_updated = CURRENT_TIMESTAMP
-      WHERE id = 1 AND CURRENT_DATE > last_updated::date;
+      WHERE id = 1 AND (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date > (last_updated AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Nairobi')::date;
     `);
 
     const result = await pool.query("SELECT days_left FROM isp_settings WHERE id = 1");
