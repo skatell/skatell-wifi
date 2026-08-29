@@ -1,7 +1,7 @@
 const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
-const bcrypt = require('bcrypt'); // Added for securing tenant admin passwords
+const bcrypt = require('bcrypt');
 
 const app = express();
 
@@ -22,7 +22,6 @@ pool.on('connect', client => {
 // Initialize Tables and System Settings Automatically
 async function initDb() {
   try {
-    // 1. Paid Users Table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS paid_users (
         id SERIAL PRIMARY KEY,
@@ -42,7 +41,6 @@ async function initDb() {
       );
     `);
 
-    // 2. Blacklist Table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS blacklist (
         id SERIAL PRIMARY KEY,
@@ -52,7 +50,6 @@ async function initDb() {
       );
     `);
 
-    // 3. System Settings Table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS system_settings (
         key VARCHAR(50) PRIMARY KEY,
@@ -68,7 +65,6 @@ async function initDb() {
       `);
     }
 
-    // 4. ISP Settings Table (Tracks days left and last update time for automatic decrement)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS isp_settings (
         id INT PRIMARY KEY DEFAULT 1,
@@ -77,7 +73,6 @@ async function initDb() {
       );
     `);
 
-    // Safety check to automatically add 'last_updated' if it's missing from an older table version
     await pool.query(`
       ALTER TABLE isp_settings ADD COLUMN IF NOT EXISTS last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
     `);
@@ -88,7 +83,6 @@ async function initDb() {
       ON CONFLICT (id) DO NOTHING;
     `);
 
-    // 5. Wifi Tenants Table (For the Multi-Tenant System Generator)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS wifi_tenants (
         id SERIAL PRIMARY KEY,
@@ -107,7 +101,6 @@ async function initDb() {
 }
 initDb();
 
-// Helper function strictly mapping your custom offers: 200 = 30d, 100 = 10d, 50 = 2d
 function calculatePackageDays(amount) {
   const paid = parseFloat(amount) || 0;
   if (paid === 200) return 30;
@@ -116,13 +109,11 @@ function calculatePackageDays(amount) {
   return 1;
 }
 
-// Admin Credentials
 let ADMIN_USER = process.env.ADMIN_USER || 'roggers';
 let ADMIN_PASS = process.env.ADMIN_PASS || '8422';
 const activeSessions = new Set();
 const activeTenantSessions = new Set();
 
-// Guard Middleware
 const requireAuthAPI = (req, res, next) => {
   const token = req.headers['x-admin-token'] || req.headers['authorization'];
   if (token && (activeSessions.has(token) || activeTenantSessions.has(token))) {
@@ -131,7 +122,6 @@ const requireAuthAPI = (req, res, next) => {
   return res.status(401).json({ success: false, message: 'Unauthorized session' });
 };
 
-// --- MULTI-TENANT SYSTEM GENERATOR ENDPOINTS ---
 app.post('/api/superadmin/create-tenant', requireAuthAPI, async (req, res) => {
   try {
     const { business_name, slug, admin_username, admin_password } = req.body;
@@ -141,24 +131,15 @@ app.post('/api/superadmin/create-tenant', requireAuthAPI, async (req, res) => {
     }
 
     const cleanSlug = slug.trim().toLowerCase();
-
-    // Hash the password for safety
     const hashedPassword = await bcrypt.hash(admin_password.trim(), 10);
     
-    // Save tenant details to the database
     await pool.query(
       'INSERT INTO wifi_tenants (business_name, subdomain_or_slug, admin_username, admin_password) VALUES ($1, $2, $3, $4)',
       [business_name.trim(), cleanSlug, admin_username.trim(), hashedPassword]
     );
 
-    // Generate their unique link dynamically
     const uniqueLink = `${req.protocol}://${req.get('host')}/portal/${cleanSlug}`;
-
-    res.json({ 
-      success: true, 
-      message: 'New Wi-Fi system generated successfully!', 
-      link: uniqueLink 
-    });
+    res.json({ success: true, message: 'New Wi-Fi system generated successfully!', link: uniqueLink });
   } catch (err) {
     console.error(err);
     if (err.code === '23505') {
@@ -168,7 +149,6 @@ app.post('/api/superadmin/create-tenant', requireAuthAPI, async (req, res) => {
   }
 });
 
-// Tenant Login Endpoint
 app.post('/api/tenant/login', async (req, res) => {
   try {
     let { slug, username, password } = req.body;
@@ -203,8 +183,6 @@ app.post('/api/tenant/login', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
-// --- ISP System Endpoints ---
 
 app.get('/api/isp-status', async (req, res) => {
   try {
@@ -292,7 +270,6 @@ app.post('/api/admin/refill-isp', requireAuthAPI, async (req, res) => {
   }
 });
 
-// --- RENEWAL CHECK ENDPOINT ---
 app.post('/api/user/check-renewal', async (req, res) => {
   try {
     let { phone } = req.body;
@@ -349,7 +326,7 @@ app.post('/api/user/check-renewal', async (req, res) => {
   }
 });
 
-// --- AUTOMATIC RENEWAL EXECUTION ENDPOINT ---
+// --- RENEWAL SUBMISSION ENDPOINT (Sets to Pending for Admin Approval) ---
 app.post('/api/user/renew', async (req, res) => {
   try {
     let { phone, days } = req.body;
@@ -380,26 +357,25 @@ app.post('/api/user/renew', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Account is not expired yet. Renewal is only allowed for expired accounts.' });
     }
 
+    let mpesaCode = 'REN_' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    // Mark as unapproved/pending so it appears in the admin approval panel queue
     const updateQuery = `
       UPDATE paid_users 
-      SET is_approved = 1,
-          status = 'Active',
+      SET is_approved = 0,
+          status = 'Pending',
           requested_days = $1,
-          start_date = CURRENT_TIMESTAMP,
-          expiry_date = CURRENT_TIMESTAMP + ($1 || ' days')::INTERVAL,
-          is_paused = false,
-          remaining_seconds = 0
-      WHERE phone_number = $2
+          mpesa_code = $2
+      WHERE phone_number = $3
       RETURNING *, 
-        TO_CHAR(start_date, 'YYYY-MM-DD HH24:MI') AS payment_date,
-        TO_CHAR(expiry_date, 'YYYY-MM-DD HH24:MI') AS end_date;
+        TO_CHAR(start_date, 'YYYY-MM-DD HH24:MI') AS payment_date;
     `;
 
-    const result = await pool.query(updateQuery, [renewalDays, phone]);
+    const result = await pool.query(updateQuery, [renewalDays, mpesaCode, phone]);
 
     return res.json({ 
       success: true, 
-      message: `Renewal successful! Your account has been automatically extended for ${renewalDays} days.`,
+      message: `Renewal request submitted successfully! Your account will be activated once the administrator approves your request.`,
       user: result.rows[0]
     });
   } catch (err) {
@@ -407,7 +383,6 @@ app.post('/api/user/renew', async (req, res) => {
   }
 });
 
-// Page Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/pay', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
